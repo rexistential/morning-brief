@@ -4,9 +4,9 @@ import { Story, TopicSection } from "./types";
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 const TONE_PROMPTS: Record<string, string> = {
-  punchy: `Write in a punchy, editorial style. Be direct and opinionated. Use short sentences that hit hard. Add context that makes the reader smarter — don't just restate headlines. Think newsletter writer, not news wire. Inject personality without being cheesy.`,
-  neutral: `Write in a clean, factual style. Lead with the most important information. Be concise but thorough. No opinion, no editorializing — just smart, well-organized reporting that respects the reader's time.`,
-  technical: `Write with technical depth. Include specifics — model names, benchmarks, architecture details, funding amounts. Assume the reader is technical and doesn't need hand-holding. Be precise and information-dense.`,
+  punchy: `You write like a sharp friend who works in tech and actually reads everything. Conversational, opinionated, zero filler. You tell people WHY something matters to them, not just what happened. Use dashes freely. Short punchy lines mixed with the occasional longer sentence when context needs it. Drop in asides like "one to watch" or "big deal for X" when warranted. Never say "In a move that" or "This comes as" — just say the thing.`,
+  neutral: `Clean and factual but still human. Lead with what matters most. No corporate voice — write like a smart journalist who respects the reader's time. Be concise but don't strip out the context that makes stories interesting.`,
+  technical: `Dense and specific. Model names, benchmarks, architecture details, funding amounts, metrics. Assume the reader is deeply technical. Still readable — not a paper abstract. More Hacker News comment than press release.`,
 };
 
 export async function rewriteBriefing(
@@ -23,39 +23,55 @@ export async function rewriteBriefing(
     return `## ${section.label}\n${stories}`;
   }).join("\n\n");
 
-  const prompt = `You are writing a personalized daily news briefing. Your job is to take raw search results and rewrite them into a flowing, readable briefing that someone actually wants to read with their morning coffee.
+  const prompt = `You're writing a daily AI/tech news briefing that reads like a sharp newsletter — not a news aggregator. Think Morning Brew meets a smart group chat. Here's an example of the EXACT style and format to match:
+
+---
+*GENERAL AI NEWS*
+
+📌 *OpenAI drops GPT-5.4 with native computer use*
+Two days after GPT-5.3 Instant, OpenAI shipped GPT-5.4 in two flavours — Thinking (for Plus+ users) and Pro ($200/mo). The headline features: 47% fewer tokens on some tasks, native computer-use mode (mouse/keyboard control via screenshots), and new financial plugins. It beat human performance on the OSWorld desktop navigation benchmark (75% vs 72.4%).
+
+📌 *MIT researchers crack LLM memory bottleneck*
+A new technique called "Attention Matching" compacts the KV cache by up to 50x with minimal accuracy loss. Big deal for enterprise use cases like long-document analysis and autonomous coding agents where memory costs cap everything.
+
+*VC & FINANCE CORNER*
+
+💰 *GPT-5.4's Excel/Sheets plugins — one to watch*
+OpenAI's new financial integrations let GPT-5.4 work directly inside spreadsheet cells for granular analysis. Following similar moves from Anthropic's Claude for Finance, this is becoming a real battleground for enterprise finance workflows.
+---
 
 ${tonePrompt}
 
 RULES:
-- Rewrite each story with a compelling 1-2 sentence writeup that tells the reader WHY this matters, not just WHAT happened
-- Keep the original headline but improve it if it's clickbaity or vague
-- Group stories naturally under their topic sections
-- Each story should feel like a mini-insight, not a regurgitated snippet
+- Each section gets a bold header with an emoji theme (use * for bold in the label)
+- Each story starts with a marker emoji (📌 for general news, 💰 for finance/VC, 🐦 for Twitter/X finds, 🔧 for tools, etc.)
+- Headlines are bold (wrapped in *)
+- The writeup flows naturally after the headline — 2-3 sentences that tell the reader WHY it matters
+- Make it feel like one continuous read, not isolated cards
+- Improve clickbait headlines but keep them informative
 - Don't add stories that aren't in the source material
-- Don't use phrases like "In a move that..." or "This comes as..." — just say the thing
-- No bullet points within stories — flowing prose
-- Keep each story writeup to 2-3 sentences max
+- NEVER use: "In a move that...", "This comes as...", "It's worth noting...", "Interestingly..."
+- Keep it tight — every sentence earns its place
 
 OUTPUT FORMAT (respond with valid JSON only, no markdown):
 {
   "sections": [
     {
       "topic": "<topic_id>",
-      "label": "<section_label>",
+      "label": "<section_label — short and punchy, e.g. 'AI NEWS' not 'AI Threats and Developments'>",
       "stories": [
         {
-          "headline": "<improved or original headline>",
-          "summary": "<your rewritten 2-3 sentence writeup>",
+          "headline": "<improved headline — concise and informative>",
+          "summary": "<your 2-3 sentence editorial writeup>",
           "source_url": "<original url — DO NOT CHANGE>",
           "source_name": "<original source name>",
-          "emoji": "<original emoji>",
+          "emoji": "<marker emoji for this story>",
           "topic": "<topic_id>"
         }
       ]
     }
   ],
-  "opener": "<one punchy sentence to open the briefing — what's the vibe today?>"
+  "opener": "<one casual line setting the vibe — like texting a friend what's in the news today>"
 }
 
 RAW MATERIAL:

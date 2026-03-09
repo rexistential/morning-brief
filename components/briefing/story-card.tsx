@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { Card, CardContent } from "@/components/ui/card";
 import { ExternalLink, ChevronDown, ChevronUp, Loader2 } from "lucide-react";
 import type { Story } from "@/lib/types";
 
@@ -53,73 +52,72 @@ export function StoryCard({ story, briefingId }: { story: Story; briefingId?: st
   };
 
   return (
-    <Card className="border-0 shadow-none">
-      <CardContent className="p-0">
-        <div className="flex items-start gap-3">
-          <span className="text-2xl mt-0.5">{story.emoji}</span>
-          <div className="flex-1">
-            <h4 className="font-semibold leading-snug">{story.headline}</h4>
-            <p className="text-sm text-muted-foreground mt-1">{story.summary}</p>
+    <div>
+      <div>
+        <p className="text-[15px] leading-relaxed">
+          <span className="mr-1.5">{story.emoji}</span>
+          <strong>{story.headline}</strong>
+          <br />
+          <span className="text-foreground/80">{story.summary}</span>
+        </p>
 
-            <div className="flex items-center gap-3 mt-2">
-              <button
-                onClick={toggleExpand}
-                className="inline-flex items-center gap-1 text-xs text-primary hover:underline"
-              >
-                {loading ? (
-                  <>
-                    <Loader2 className="h-3 w-3 animate-spin" />
-                    Loading...
-                  </>
-                ) : expanded ? (
-                  <>
-                    <ChevronUp className="h-3 w-3" />
-                    Collapse
-                  </>
-                ) : (
-                  <>
-                    <ChevronDown className="h-3 w-3" />
-                    Read more
-                  </>
-                )}
-              </button>
+        <div className="flex items-center gap-3 mt-1.5">
+          <button
+            onClick={toggleExpand}
+            className="inline-flex items-center gap-1 text-xs text-primary/70 hover:text-primary transition-colors"
+          >
+            {loading ? (
+              <>
+                <Loader2 className="h-3 w-3 animate-spin" />
+                Loading...
+              </>
+            ) : expanded ? (
+              <>
+                <ChevronUp className="h-3 w-3" />
+                Less
+              </>
+            ) : (
+              <>
+                <ChevronDown className="h-3 w-3" />
+                Full article
+              </>
+            )}
+          </button>
 
+          <a
+            href={story.source_url}
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={handleClick}
+            className="inline-flex items-center gap-1 text-xs text-muted-foreground/60 hover:text-muted-foreground transition-colors"
+          >
+            {story.source_name}
+            <ExternalLink className="h-3 w-3" />
+          </a>
+        </div>
+      </div>
+
+      {expanded && (
+        <div className="mt-3 border-l-2 border-muted pl-4">
+          {fetchError ? (
+            <p className="text-sm text-muted-foreground italic">
+              Couldn&apos;t load the full article.{" "}
               <a
                 href={story.source_url}
                 target="_blank"
                 rel="noopener noreferrer"
-                onClick={handleClick}
-                className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-primary hover:underline"
+                className="text-primary hover:underline"
               >
-                {story.source_name}
-                <ExternalLink className="h-3 w-3" />
+                Read on {story.source_name} →
               </a>
+            </p>
+          ) : articleContent ? (
+            <div className="text-sm text-foreground/80 whitespace-pre-line leading-relaxed max-h-96 overflow-y-auto">
+              {articleContent}
             </div>
-
-            {expanded && (
-              <div className="mt-3 pl-0 border-l-2 border-muted pl-4">
-                {fetchError ? (
-                  <p className="text-sm text-muted-foreground italic">
-                    Couldn&apos;t load the full article.{" "}
-                    <a
-                      href={story.source_url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-primary hover:underline"
-                    >
-                      Read it on {story.source_name} →
-                    </a>
-                  </p>
-                ) : articleContent ? (
-                  <div className="text-sm text-foreground/90 whitespace-pre-line leading-relaxed max-h-96 overflow-y-auto">
-                    {articleContent}
-                  </div>
-                ) : null}
-              </div>
-            )}
-          </div>
+          ) : null}
         </div>
-      </CardContent>
-    </Card>
+      )}
+    </div>
   );
 }

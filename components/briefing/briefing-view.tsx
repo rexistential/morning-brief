@@ -1,7 +1,5 @@
 "use client";
 
-import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
 import { StoryCard } from "./story-card";
 import type { Briefing } from "@/lib/types";
 
@@ -18,32 +16,29 @@ export function BriefingView({ briefing }: { briefing: Briefing }) {
   const opener = briefing.content?.split("\n\n##")[0]?.trim();
 
   return (
-    <div>
+    <div className="max-w-2xl">
       <div className="mb-6">
-        <h2 className="text-2xl font-bold">Morning Brief</h2>
-        <p className="text-sm text-muted-foreground">{formatted}</p>
+        <h2 className="text-2xl font-bold tracking-tight">Morning Brief ☀️</h2>
+        <p className="text-sm text-muted-foreground mt-1">{formatted}</p>
       </div>
 
       {opener && !opener.startsWith("##") && (
-        <p className="text-base text-foreground/80 mb-8 leading-relaxed italic">
+        <p className="text-base text-foreground/70 mb-8">
           {opener}
         </p>
       )}
 
-      <div className="space-y-8">
-        {briefing.topic_sections.map((section, si) => (
+      <div className="space-y-10">
+        {briefing.topic_sections.map((section) => (
           <div key={section.topic}>
-            <div className="flex items-center gap-2 mb-4">
-              <Badge variant="secondary" className="text-sm">
-                {section.stories[0]?.emoji} {section.label}
-              </Badge>
-            </div>
+            <h3 className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-5">
+              {section.stories[0]?.emoji} {section.label}
+            </h3>
             <div className="space-y-6">
               {section.stories.map((story, i) => (
                 <StoryCard key={i} story={story} briefingId={briefing.id} />
               ))}
             </div>
-            {si < briefing.topic_sections.length - 1 && <Separator className="mt-8" />}
           </div>
         ))}
       </div>
