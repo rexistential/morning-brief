@@ -1,7 +1,6 @@
 "use client";
 
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { StoryCard } from "./story-card";
 import type { Briefing } from "@/lib/types";
@@ -15,12 +14,21 @@ export function BriefingView({ briefing }: { briefing: Briefing }) {
     year: "numeric",
   });
 
+  // Extract opener from content (first line before the ## sections)
+  const opener = briefing.content?.split("\n\n##")[0]?.trim();
+
   return (
     <div>
-      <div className="mb-8">
+      <div className="mb-6">
         <h2 className="text-2xl font-bold">Morning Brief</h2>
-        <p className="text-muted-foreground">{formatted}</p>
+        <p className="text-sm text-muted-foreground">{formatted}</p>
       </div>
+
+      {opener && !opener.startsWith("##") && (
+        <p className="text-base text-foreground/80 mb-8 leading-relaxed italic">
+          {opener}
+        </p>
+      )}
 
       <div className="space-y-8">
         {briefing.topic_sections.map((section, si) => (

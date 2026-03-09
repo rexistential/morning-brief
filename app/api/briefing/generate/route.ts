@@ -3,6 +3,7 @@ import { createClient } from "@supabase/supabase-js";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { fetchRealNews } from "@/lib/news-fetcher";
+import { rewriteBriefing } from "@/lib/briefing-writer";
 
 export async function POST(request: NextRequest) {
   try {
@@ -68,18 +69,14 @@ export async function POST(request: NextRequest) {
       previousStories,
     );
 
-    // Build content string
-    const tonePrefix = profile.briefing_tone === "punchy"
-      ? "Here's what's moving the needle today:"
-      : profile.briefing_tone === "neutral"
-        ? "Today's key developments:"
-        : "Technical briefing — detailed analysis:";
+    // Rewrite with AI for natural editorial flow
+    const { rewrittenSections, editorialContent } = await rewriteBriefing(
+      topicSections,
+      profile.briefing_tone || "punchy",
+    );
 
-    const content = `${tonePrefix}\n\n${topicSections.map(s =>
-      `## ${s.stories[0]?.emoji || "📰"} ${s.label}\n\n${s.stories.map(st =>
-        `**${st.headline}**\n${st.summary}\n[${st.source_name}](${st.source_url})`
-      ).join("\n\n")}`
-    ).join("\n\n---\n\n")}`;
+    // Use rewritten stories for storage
+    const rewrittenStories = rewrittenSections.flatMap(s => s.stories);
 
     const today = new Date().toISOString().split("T")[0];
 
@@ -92,9 +89,9 @@ export async function POST(request: NextRequest) {
       .from("briefings")
       .insert({
         user_id: userId,
-        content,
-        stories,
-        topic_sections: topicSections,
+        content: editorialContent,
+        stories: rewrittenStories,
+        topic_sections: rewrittenSections,
         briefing_date: today,
         generated_at: new Date().toISOString(),
       })
