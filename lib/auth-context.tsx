@@ -33,14 +33,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
   const supabase = createBrowserSupabaseClient();
 
-  const fetchProfile = useCallback(async (userId: string) => {
-    const { data } = await supabase
-      .from("profiles")
-      .select("*")
-      .eq("id", userId)
-      .single();
-    setProfile(data as Profile | null);
-  }, [supabase]);
+  const fetchProfile = useCallback(async (_userId?: string) => {
+    try {
+      const res = await fetch("/api/profile/me");
+      if (res.ok) {
+        const data = await res.json();
+        setProfile(data.profile as Profile | null);
+      }
+    } catch {
+      setProfile(null);
+    }
+  }, []);
 
   const refreshProfile = useCallback(async () => {
     if (user) {
