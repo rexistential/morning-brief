@@ -58,8 +58,7 @@ export default function OnboardingPage() {
     if (!user) return;
     setSaving(true);
     const supabase = createBrowserSupabaseClient();
-    await supabase.from("profiles").upsert({
-      id: user.id,
+    const { error } = await supabase.from("profiles").update({
       email: emailAddress,
       topics,
       briefing_length: briefingLength,
@@ -68,7 +67,13 @@ export default function OnboardingPage() {
       timezone,
       onboarded: true,
       updated_at: new Date().toISOString(),
-    });
+    }).eq("id", user.id);
+    
+    if (error) {
+      console.error("Failed to save preferences:", error);
+      setSaving(false);
+      return;
+    }
     await refreshProfile();
     router.push("/dashboard");
   };
