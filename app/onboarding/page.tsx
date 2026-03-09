@@ -57,20 +57,24 @@ export default function OnboardingPage() {
   const handleSave = async () => {
     if (!user) return;
     setSaving(true);
-    const supabase = createBrowserSupabaseClient();
-    const { error } = await supabase.from("profiles").update({
-      email: emailAddress,
-      topics,
-      briefing_length: briefingLength,
-      briefing_tone: briefingTone,
-      send_time: sendTime,
-      timezone,
-      onboarded: true,
-      updated_at: new Date().toISOString(),
-    }).eq("id", user.id);
     
-    if (error) {
-      console.error("Failed to save preferences:", error);
+    const res = await fetch("/api/profile/update", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        email: emailAddress,
+        topics,
+        briefing_length: briefingLength,
+        briefing_tone: briefingTone,
+        send_time: sendTime,
+        timezone,
+        onboarded: true,
+      }),
+    });
+    
+    if (!res.ok) {
+      const data = await res.json();
+      console.error("Failed to save preferences:", data.error);
       setSaving(false);
       return;
     }

@@ -46,17 +46,24 @@ export default function PreferencesPage() {
   const handleSave = async () => {
     if (!profile) return;
     setSaving(true);
-    const supabase = createBrowserSupabaseClient();
-    await supabase.from("profiles").update({
-      email: emailAddress,
-      topics,
-      briefing_length: briefingLength,
-      briefing_tone: briefingTone,
-      send_time: sendTime,
-      timezone,
-      email_enabled: emailEnabled,
-      updated_at: new Date().toISOString(),
-    }).eq("id", profile.id);
+    
+    const res = await fetch("/api/profile/update", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        email: emailAddress,
+        topics,
+        briefing_length: briefingLength,
+        briefing_tone: briefingTone,
+        send_time: sendTime,
+        timezone,
+        email_enabled: emailEnabled,
+      }),
+    });
+    
+    if (!res.ok) {
+      console.error("Failed to save preferences");
+    }
     await refreshProfile();
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
