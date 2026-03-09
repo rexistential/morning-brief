@@ -29,6 +29,7 @@ export const SEND_TIMES = [
 ] as const;
 
 export const TIMEZONES = [
+  "Africa/Johannesburg",
   "US/Eastern",
   "US/Central",
   "US/Mountain",
@@ -37,6 +38,7 @@ export const TIMEZONES = [
   "Europe/London",
   "Europe/Paris",
   "Europe/Berlin",
+  "Asia/Dubai",
   "Asia/Tokyo",
   "Asia/Shanghai",
   "Asia/Kolkata",

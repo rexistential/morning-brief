@@ -4,8 +4,9 @@ import { useAuth } from "@/lib/auth-context";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 
 const SAMPLE_STORIES = [
@@ -16,12 +17,14 @@ const SAMPLE_STORIES = [
 ];
 
 export default function LandingPage() {
-  const { user, profile, loading, signIn } = useAuth();
+  const { user, profile, loading, signUp, signIn } = useAuth();
   const router = useRouter();
   const [email, setEmail] = useState("");
-  const [sent, setSent] = useState(false);
+  const [password, setPassword] = useState("");
+  const [mode, setMode] = useState<"signin" | "signup">("signin");
   const [error, setError] = useState("");
-  const [sending, setSending] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [signedUp, setSignedUp] = useState(false);
 
   useEffect(() => {
     if (!loading && user) {
@@ -33,17 +36,30 @@ export default function LandingPage() {
     }
   }, [user, profile, loading, router]);
 
-  const handleSignIn = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setSending(true);
+    setSubmitting(true);
     setError("");
-    const { error: err } = await signIn(email);
-    if (err) {
-      setError(err);
+
+    if (mode === "signup") {
+      if (password.length < 6) {
+        setError("Password must be at least 6 characters");
+        setSubmitting(false);
+        return;
+      }
+      const { error: err } = await signUp(email, password);
+      if (err) {
+        setError(err);
+      } else {
+        setSignedUp(true);
+      }
     } else {
-      setSent(true);
+      const { error: err } = await signIn(email, password);
+      if (err) {
+        setError(err);
+      }
     }
-    setSending(false);
+    setSubmitting(false);
   };
 
   if (loading) {
@@ -72,31 +88,86 @@ export default function LandingPage() {
             Get a personalized AI-generated news briefing every morning. Pick your topics, choose your style, and start your day informed.
           </p>
 
-          {sent ? (
+          {signedUp ? (
             <Card className="max-w-md mx-auto">
               <CardContent className="pt-6 text-center">
                 <p className="text-lg font-medium mb-2">Check your email</p>
                 <p className="text-muted-foreground">
-                  We sent a magic link to <strong>{email}</strong>. Click it to sign in.
+                  We sent a confirmation link to <strong>{email}</strong>. Click it to activate your account, then come back and sign in.
                 </p>
               </CardContent>
             </Card>
           ) : (
-            <form onSubmit={handleSignIn} className="flex gap-3 max-w-md mx-auto">
-              <Input
-                type="email"
-                placeholder="you@example.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-                className="flex-1"
-              />
-              <Button type="submit" disabled={sending}>
-                {sending ? "Sending..." : "Get Started"}
-              </Button>
-            </form>
+            <Card className="max-w-sm mx-auto text-left">
+              <CardHeader className="text-center">
+                <CardTitle>{mode === "signin" ? "Sign in" : "Create account"}</CardTitle>
+                <CardDescription>
+                  {mode === "signin"
+                    ? "Welcome back — sign in to your briefing."
+                    : "Set up your personalized AI briefing in under a minute."}
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <form onSubmit={handleSubmit} className="space-y-4">
+                  <div>
+                    <Label htmlFor="email">Email</Label>
+                    <Input
+                      id="email"
+                      type="email"
+                      placeholder="you@example.com"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      required
+                      className="mt-1"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="password">Password</Label>
+                    <Input
+                      id="password"
+                      type="password"
+                      placeholder={mode === "signup" ? "At least 6 characters" : "••••••••"}
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      required
+                      className="mt-1"
+                    />
+                  </div>
+                  {error && <p className="text-destructive text-sm">{error}</p>}
+                  <Button type="submit" className="w-full" disabled={submitting}>
+                    {submitting
+                      ? "Hold on..."
+                      : mode === "signin"
+                        ? "Sign in"
+                        : "Create account"}
+                  </Button>
+                </form>
+                <div className="mt-4 text-center text-sm text-muted-foreground">
+                  {mode === "signin" ? (
+                    <>
+                      Don&apos;t have an account?{" "}
+                      <button
+                        className="text-primary underline-offset-4 hover:underline"
+                        onClick={() => { setMode("signup"); setError(""); }}
+                      >
+                        Sign up
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      Already have an account?{" "}
+                      <button
+                        className="text-primary underline-offset-4 hover:underline"
+                        onClick={() => { setMode("signin"); setError(""); }}
+                      >
+                        Sign in
+                      </button>
+                    </>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
           )}
-          {error && <p className="text-destructive mt-3 text-sm">{error}</p>}
         </section>
 
         <section className="pb-20">
