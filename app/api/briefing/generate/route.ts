@@ -50,10 +50,22 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
-    // Fetch real news based on user's topic preferences
+    // Load stories from the last 7 days for dedup
+    const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
+    const { data: previousBriefings } = await admin
+      .from("briefings")
+      .select("stories")
+      .eq("user_id", userId)
+      .gte("briefing_date", sevenDaysAgo)
+      .order("briefing_date", { ascending: false });
+
+    const previousStories = (previousBriefings || []).flatMap(b => b.stories || []);
+
+    // Fetch real news based on user's topic preferences, excluding previous stories
     const { stories, topicSections } = await fetchRealNews(
       profile.topics || [],
       profile.briefing_length || "standard",
+      previousStories,
     );
 
     // Build content string

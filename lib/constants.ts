@@ -1,6 +1,7 @@
 export const TOPICS = [
   { id: "ai-ml", label: "AI & Machine Learning", emoji: "🤖" },
   { id: "foundation-models", label: "Foundation Models", emoji: "🧠" },
+  { id: "ai-finance", label: "AI in Finance & Excel", emoji: "💹" },
   { id: "vc-startups", label: "VC & Startups", emoji: "🚀" },
   { id: "markets-finance", label: "Markets & Finance", emoji: "📈" },
   { id: "dev-tools", label: "Developer Tools & Infrastructure", emoji: "🛠️" },

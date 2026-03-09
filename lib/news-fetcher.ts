@@ -1,22 +1,66 @@
 import { Story, TopicSection } from "./types";
 import { getTopicById, getStoryCountForLength } from "./constants";
 
-const TOPIC_SEARCH_QUERIES: Record<string, string[]> = {
-  "ai-ml": ["artificial intelligence news today", "machine learning breakthrough"],
-  "foundation-models": ["OpenAI Anthropic Google AI model news", "LLM foundation model update"],
-  "vc-startups": ["AI startup funding round", "venture capital AI investment"],
-  "markets-finance": ["stock market AI technology news", "finance technology news today"],
-  "dev-tools": ["developer tools AI coding news", "software development tools update"],
-  "policy-regulation": ["AI regulation policy government", "AI safety policy news"],
-  "hardware-chips": ["AI chip GPU semiconductor news", "NVIDIA AMD AI hardware"],
-  "open-source": ["open source AI model release", "open source machine learning news"],
-  "robotics": ["robotics AI automation news", "humanoid robot news"],
-  "crypto-web3": ["cryptocurrency Bitcoin news today", "crypto blockchain AI news"],
+// Each topic gets web queries + Twitter/X-specific queries
+const TOPIC_SEARCH_QUERIES: Record<string, { web: string[]; twitter: string[] }> = {
+  "ai-ml": {
+    web: ["artificial intelligence news today", "machine learning breakthrough"],
+    twitter: ["AI breakthrough site:x.com OR site:twitter.com"],
+  },
+  "foundation-models": {
+    web: ["OpenAI Anthropic Google AI model news", "LLM foundation model update"],
+    twitter: ["GPT Claude Gemini new model site:x.com OR site:twitter.com"],
+  },
+  "ai-finance": {
+    web: [
+      "AI financial modeling Excel tools",
+      "AI finance spreadsheet automation product launch",
+      "AI CFO accounting tools fintech",
+    ],
+    twitter: [
+      "AI Excel financial modeling site:x.com OR site:twitter.com",
+      "AI finance tools spreadsheet site:x.com OR site:twitter.com",
+      "fintech AI product launch site:x.com OR site:twitter.com",
+    ],
+  },
+  "vc-startups": {
+    web: ["AI startup funding round", "venture capital AI investment"],
+    twitter: ["AI startup raised funding site:x.com OR site:twitter.com"],
+  },
+  "markets-finance": {
+    web: ["stock market AI technology news", "finance technology news today"],
+    twitter: ["AI stocks market fintech site:x.com OR site:twitter.com"],
+  },
+  "dev-tools": {
+    web: ["developer tools AI coding news", "software development tools update"],
+    twitter: ["AI coding tool developer site:x.com OR site:twitter.com"],
+  },
+  "policy-regulation": {
+    web: ["AI regulation policy government", "AI safety policy news"],
+    twitter: ["AI regulation policy site:x.com OR site:twitter.com"],
+  },
+  "hardware-chips": {
+    web: ["AI chip GPU semiconductor news", "NVIDIA AMD AI hardware"],
+    twitter: ["NVIDIA AMD AI chip site:x.com OR site:twitter.com"],
+  },
+  "open-source": {
+    web: ["open source AI model release", "open source machine learning news"],
+    twitter: ["open source AI model release site:x.com OR site:twitter.com"],
+  },
+  "robotics": {
+    web: ["robotics AI automation news", "humanoid robot news"],
+    twitter: ["robotics AI humanoid site:x.com OR site:twitter.com"],
+  },
+  "crypto-web3": {
+    web: ["cryptocurrency Bitcoin news today", "crypto blockchain AI news"],
+    twitter: ["crypto AI blockchain site:x.com OR site:twitter.com"],
+  },
 };
 
 const TOPIC_EMOJIS: Record<string, string> = {
   "ai-ml": "🤖",
   "foundation-models": "🧠",
+  "ai-finance": "💹",
   "vc-startups": "🚀",
   "markets-finance": "📈",
   "dev-tools": "🛠️",
@@ -34,7 +78,7 @@ interface BraveResult {
   age?: string;
 }
 
-async function searchBrave(query: string, count: number = 5): Promise<BraveResult[]> {
+async function searchBrave(query: string, count: number = 5, freshness: string = "pd"): Promise<BraveResult[]> {
   const apiKey = process.env.BRAVE_SEARCH_API_KEY;
   if (!apiKey) {
     console.error("BRAVE_SEARCH_API_KEY not set");
@@ -45,7 +89,7 @@ async function searchBrave(query: string, count: number = 5): Promise<BraveResul
     const params = new URLSearchParams({
       q: query,
       count: String(count),
-      freshness: "pd", // past day
+      freshness,
       text_decorations: "false",
     });
 
@@ -102,6 +146,8 @@ function extractSourceName(url: string): string {
       "blog.google": "Google Blog",
       "ai.meta.com": "Meta AI",
       "huggingface.co": "Hugging Face",
+      "x.com": "X (Twitter)",
+      "twitter.com": "X (Twitter)",
     };
     return nameMap[hostname] || hostname.split(".")[0].charAt(0).toUpperCase() + hostname.split(".")[0].slice(1);
   } catch {
@@ -109,12 +155,57 @@ function extractSourceName(url: string): string {
   }
 }
 
+// Normalize URL for dedup comparison (strip tracking params, trailing slashes, etc.)
+function normalizeUrl(url: string): string {
+  try {
+    const u = new URL(url);
+    u.search = "";
+    u.hash = "";
+    return u.href.replace(/\/+$/, "").toLowerCase();
+  } catch {
+    return url.toLowerCase();
+  }
+}
+
+// Normalize headline for fuzzy dedup (lowercase, strip punctuation)
+function normalizeHeadline(headline: string): string {
+  return headline
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+// Check if two headlines are similar enough to be the same story
+function headlinesSimilar(a: string, b: string): boolean {
+  const na = normalizeHeadline(a);
+  const nb = normalizeHeadline(b);
+  if (na === nb) return true;
+
+  // Check if one contains most of the other (>70% word overlap)
+  const wordsA = new Set(na.split(" "));
+  const wordsB = new Set(nb.split(" "));
+  const overlap = [...wordsA].filter(w => wordsB.has(w)).length;
+  const minSize = Math.min(wordsA.size, wordsB.size);
+  return minSize > 3 && overlap / minSize > 0.7;
+}
+
 export async function fetchRealNews(
   topics: string[],
   length: string,
+  previousStories: Story[] = [],
 ): Promise<{ stories: Story[]; topicSections: TopicSection[] }> {
   const storyCount = getStoryCountForLength(length);
   const storiesPerTopic = Math.max(2, Math.ceil(storyCount / topics.length));
+
+  // Build dedup sets from previous briefings
+  const previousUrls = new Set(previousStories.map(s => normalizeUrl(s.source_url)));
+  const previousHeadlines = previousStories.map(s => s.headline);
+
+  const isDuplicate = (url: string, headline: string): boolean => {
+    if (previousUrls.has(normalizeUrl(url))) return true;
+    return previousHeadlines.some(prev => headlinesSimilar(prev, headline));
+  };
 
   const topicSections: TopicSection[] = [];
   const allStories: Story[] = [];
@@ -123,31 +214,53 @@ export async function fetchRealNews(
     const topicInfo = getTopicById(topicId);
     if (!topicInfo) continue;
 
-    const queries = TOPIC_SEARCH_QUERIES[topicId] || [`${topicInfo.label} news today`];
+    const queryConfig = TOPIC_SEARCH_QUERIES[topicId] || {
+      web: [`${topicInfo.label} news today`],
+      twitter: [],
+    };
     const emoji = TOPIC_EMOJIS[topicId] || "📰";
 
-    // Search with the first query, fall back to second if needed
-    let results = await searchBrave(queries[0], storiesPerTopic + 2);
-    if (results.length < 2 && queries[1]) {
-      const moreResults = await searchBrave(queries[1], storiesPerTopic);
-      results = [...results, ...moreResults];
+    // Fetch web results
+    let results: BraveResult[] = [];
+    for (const query of queryConfig.web) {
+      const batch = await searchBrave(query, storiesPerTopic + 3);
+      results.push(...batch);
+      if (results.length >= storiesPerTopic + 3) break;
     }
 
-    // Deduplicate by domain
+    // Fetch Twitter/X results
+    let twitterResults: BraveResult[] = [];
+    for (const query of queryConfig.twitter) {
+      const batch = await searchBrave(query, 3, "pw"); // past week for twitter (less volume)
+      twitterResults.push(...batch);
+      if (twitterResults.length >= 2) break;
+    }
+
+    // Combine, with Twitter results marked
+    const combined = [
+      ...results.map(r => ({ ...r, isTwitter: false })),
+      ...twitterResults.map(r => ({ ...r, isTwitter: true })),
+    ];
+
+    // Deduplicate by domain (allow multiple twitter links)
     const seen = new Set<string>();
-    const unique = results.filter(r => {
+    const unique = combined.filter(r => {
       try {
         const domain = new URL(r.url).hostname;
-        if (seen.has(domain)) return false;
-        seen.add(domain);
+        const key = r.isTwitter ? r.url : domain; // unique per tweet, per domain for web
+        if (seen.has(key)) return false;
+        seen.add(key);
         return true;
       } catch {
         return true;
       }
     });
 
-    const topicStories: Story[] = unique.slice(0, storiesPerTopic).map(r => ({
-      emoji,
+    // Filter out duplicates from previous days
+    const fresh = unique.filter(r => !isDuplicate(r.url, r.title));
+
+    const topicStories: Story[] = fresh.slice(0, storiesPerTopic).map(r => ({
+      emoji: r.isTwitter ? "🐦" : emoji,
       headline: r.title,
       summary: r.description,
       source_url: r.url,
