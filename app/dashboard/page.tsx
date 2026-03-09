@@ -85,5 +85,24 @@ export default function DashboardPage() {
     );
   }
 
-  return <BriefingView briefing={briefing} />;
+  return (
+    <div>
+      <div className="flex justify-end mb-4">
+        <Button variant="outline" size="sm" onClick={generateBriefing} disabled={generating}>
+          {generating ? (
+            <>
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              Regenerating...
+            </>
+          ) : (
+            <>
+              <RefreshCw className="h-4 w-4 mr-2" />
+              Regenerate briefing
+            </>
+          )}
+        </Button>
+      </div>
+      <BriefingView briefing={briefing} />
+    </div>
+  );
 }
