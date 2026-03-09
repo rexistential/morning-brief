@@ -26,6 +26,7 @@ export interface Story {
 export interface TopicSection {
   topic: string;
   label: string;
+  body?: string;
   stories: Story[];
 }
 

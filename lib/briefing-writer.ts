@@ -59,13 +59,12 @@ OUTPUT FORMAT (respond with valid JSON only, no markdown):
     {
       "topic": "<topic_id>",
       "label": "<section_label — short and punchy, e.g. 'AI NEWS' not 'AI Threats and Developments'>",
+      "body": "<the full editorial writeup for this section as flowing paragraphs. Weave ALL stories in this section into connected prose. Bold key names/products with **double asterisks**. Reference sources inline like (Source Name). Each story should transition naturally into the next — use connective phrases, contrasts, or thematic links. Aim for 2-4 paragraphs per section. Include source URLs as markdown links: [Source Name](url).>",
       "stories": [
         {
-          "headline": "<improved headline — concise and informative>",
-          "summary": "<your 2-3 sentence editorial writeup>",
+          "headline": "<headline>",
           "source_url": "<original url — DO NOT CHANGE>",
           "source_name": "<original source name>",
-          "emoji": "<marker emoji for this story>",
           "topic": "<topic_id>"
         }
       ]
@@ -73,6 +72,8 @@ OUTPUT FORMAT (respond with valid JSON only, no markdown):
   ],
   "opener": "<one casual line setting the vibe — like texting a friend what's in the news today>"
 }
+
+CRITICAL: The "body" field is the main content. Write it as flowing editorial paragraphs that weave all the section's stories together naturally. NOT a list of disconnected items. The "stories" array is just for metadata/link tracking — the real reading experience is the body text.
 
 RAW MATERIAL:
 ${rawMaterial}`;
@@ -91,32 +92,29 @@ ${rawMaterial}`;
 
     const parsed = JSON.parse(text);
 
-    // Reconstruct TopicSections with rewritten content, preserving original URLs
+    // Reconstruct sections with body text and story metadata
     const rewrittenSections: TopicSection[] = (parsed.sections || []).map((section: {
       topic: string;
       label: string;
-      stories: Story[];
+      body?: string;
+      stories: { headline: string; source_url: string; source_name: string; topic: string }[];
     }) => ({
       topic: section.topic,
       label: section.label,
-      stories: section.stories.map((s: Story) => ({
-        emoji: s.emoji,
+      body: section.body || "",
+      stories: section.stories.map(s => ({
+        emoji: "",
         headline: s.headline,
-        summary: s.summary,
+        summary: "",
         source_url: s.source_url,
         source_name: s.source_name,
         topic: s.topic,
       })),
     }));
 
-    // Flatten stories for the top-level array
-    const allStories = rewrittenSections.flatMap(s => s.stories);
-
     // Build editorial content string
     const editorialContent = `${parsed.opener || ""}\n\n${rewrittenSections.map(s =>
-      `## ${s.stories[0]?.emoji || "📰"} ${s.label}\n\n${s.stories.map((st: Story) =>
-        `**${st.headline}**\n${st.summary}\n[${st.source_name}](${st.source_url})`
-      ).join("\n\n")}`
+      `## ${s.label}\n\n${(s as TopicSection & { body?: string }).body || ""}`
     ).join("\n\n---\n\n")}`;
 
     return {
