@@ -1,19 +1,46 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createServerSupabaseClient } from "@/lib/supabase";
-import { generateSampleBriefing } from "@/lib/sample-briefing";
+import { createClient } from "@supabase/supabase-js";
+import { createServerClient } from "@supabase/ssr";
+import { cookies } from "next/headers";
+import { fetchRealNews } from "@/lib/news-fetcher";
 
 export async function POST(request: NextRequest) {
   try {
+    // Auth: check if called with userId (internal/admin) or via session
     const body = await request.json();
-    const { userId } = body;
+    let userId = body.userId;
+
+    if (!userId) {
+      // Try to get from session
+      const cookieStore = await cookies();
+      const supabase = createServerClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+        {
+          cookies: {
+            getAll() { return cookieStore.getAll(); },
+            setAll(cookiesToSet) {
+              for (const { name, value, options } of cookiesToSet) {
+                cookieStore.set(name, value, options);
+              }
+            },
+          },
+        }
+      );
+      const { data: { user } } = await supabase.auth.getUser();
+      userId = user?.id;
+    }
 
     if (!userId) {
       return NextResponse.json({ error: "userId is required" }, { status: 400 });
     }
 
-    const supabase = createServerSupabaseClient();
+    const admin = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!
+    );
 
-    const { data: profile, error: profileError } = await supabase
+    const { data: profile, error: profileError } = await admin
       .from("profiles")
       .select("*")
       .eq("id", userId)
@@ -23,63 +50,56 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
-    const { stories, topicSections, content } = generateSampleBriefing(
+    // Fetch real news based on user's topic preferences
+    const { stories, topicSections } = await fetchRealNews(
       profile.topics || [],
       profile.briefing_length || "standard",
-      profile.briefing_tone || "punchy"
     );
+
+    // Build content string
+    const tonePrefix = profile.briefing_tone === "punchy"
+      ? "Here's what's moving the needle today:"
+      : profile.briefing_tone === "neutral"
+        ? "Today's key developments:"
+        : "Technical briefing — detailed analysis:";
+
+    const content = `${tonePrefix}\n\n${topicSections.map(s =>
+      `## ${s.stories[0]?.emoji || "📰"} ${s.label}\n\n${s.stories.map(st =>
+        `**${st.headline}**\n${st.summary}\n[${st.source_name}](${st.source_url})`
+      ).join("\n\n")}`
+    ).join("\n\n---\n\n")}`;
 
     const today = new Date().toISOString().split("T")[0];
 
-    const { data: briefing, error: insertError } = await supabase
+    // Delete existing briefing for today (if regenerating)
+    await admin.from("briefings").delete()
+      .eq("user_id", userId)
+      .eq("briefing_date", today);
+
+    const { data: briefing, error: insertError } = await admin
       .from("briefings")
-      .upsert(
-        {
-          user_id: userId,
-          content,
-          stories,
-          topic_sections: topicSections,
-          briefing_date: today,
-          generated_at: new Date().toISOString(),
-        },
-        { onConflict: "user_id,briefing_date" }
-      )
+      .insert({
+        user_id: userId,
+        content,
+        stories,
+        topic_sections: topicSections,
+        briefing_date: today,
+        generated_at: new Date().toISOString(),
+      })
       .select()
       .single();
 
     if (insertError) {
-      // If upsert on conflict fails (no unique constraint yet), try insert
-      const { data: newBriefing, error: err2 } = await supabase
-        .from("briefings")
-        .insert({
-          user_id: userId,
-          content,
-          stories,
-          topic_sections: topicSections,
-          briefing_date: today,
-          generated_at: new Date().toISOString(),
-        })
-        .select()
-        .single();
-
-      if (err2) {
-        return NextResponse.json({ error: err2.message }, { status: 500 });
-      }
-
-      // Mock email sending
-      if (profile.email_enabled) {
-        console.log(`[MOCK EMAIL] Would send briefing to ${profile.email}`);
-      }
-
-      return NextResponse.json({ briefing: newBriefing });
+      return NextResponse.json({ error: insertError.message }, { status: 500 });
     }
 
     if (profile.email_enabled) {
-      console.log(`[MOCK EMAIL] Would send briefing to ${profile.email}`);
+      console.log(`[EMAIL] Would send briefing to ${profile.email} (Resend not configured yet)`);
     }
 
     return NextResponse.json({ briefing });
   } catch (error) {
+    console.error("Generate error:", error);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }
