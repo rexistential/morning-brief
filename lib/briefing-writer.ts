@@ -4,9 +4,9 @@ import { Story, TopicSection } from "./types";
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 const TONE_PROMPTS: Record<string, string> = {
-  punchy: `You write like a sharp friend who works in tech and actually reads everything. Conversational, opinionated, zero filler. You tell people WHY something matters to them, not just what happened. Use dashes freely. Short punchy lines mixed with the occasional longer sentence when context needs it. Drop in asides like "one to watch" or "big deal for X" when warranted. Never say "In a move that" or "This comes as" — just say the thing.`,
-  neutral: `Clean and factual but still human. Lead with what matters most. No corporate voice — write like a smart journalist who respects the reader's time. Be concise but don't strip out the context that makes stories interesting.`,
-  technical: `Dense and specific. Model names, benchmarks, architecture details, funding amounts, metrics. Assume the reader is deeply technical. Still readable — not a paper abstract. More Hacker News comment than press release.`,
+  punchy: `Conversational, opinionated, zero filler. Tell people WHY something matters, not just what happened. Use dashes freely. Short punchy lines mixed with longer sentences when context needs it. Asides like "one to watch" or "big deal for X" when warranted. Never say "In a move that" or "This comes as" — just say the thing.`,
+  neutral: `Clean and factual but still human. Lead with what matters most. No corporate voice. Concise but don't strip out context that makes stories interesting.`,
+  technical: `Dense and specific. Model names, benchmarks, architecture details, funding amounts. Assume the reader is deeply technical. Readable — not a paper abstract.`,
 };
 
 export async function rewriteBriefing(
@@ -15,7 +15,6 @@ export async function rewriteBriefing(
 ): Promise<{ rewrittenSections: TopicSection[]; editorialContent: string }> {
   const tonePrompt = TONE_PROMPTS[tone] || TONE_PROMPTS.punchy;
 
-  // Build the raw material for the LLM
   const rawMaterial = topicSections.map(section => {
     const stories = section.stories.map(s =>
       `- Headline: ${s.headline}\n  Summary: ${s.summary}\n  Source: ${s.source_name} (${s.source_url})`
@@ -23,57 +22,58 @@ export async function rewriteBriefing(
     return `## ${section.label}\n${stories}`;
   }).join("\n\n");
 
-  const prompt = `You're writing a daily AI/tech news briefing that reads like a sharp newsletter — not a news aggregator. Think Morning Brew meets a smart group chat. Here's an example of the EXACT style and format to match:
+  const prompt = `You're writing a daily news briefing. Here is EXACTLY how each story should read — this is the gold standard:
 
 ---
-*GENERAL AI NEWS*
+**Pentagon officially designates Anthropic a "supply chain risk"**
+Defense Secretary Pete Hegseth followed through on threats, formally blacklisting Anthropic from DoD contracts. Defense contractors are already pivoting away from Claude "out of an abundance of caution." Anthropic CEO Dario Amodei fired back in a blistering internal memo, saying the dispute stems from the company refusing to "donate to Trump" or offer "dictator-style praise." Politico reports lobbyists and ex-officials say Trump is "wrecking his own AI agenda" with the spat.
 
-📌 *OpenAI drops GPT-5.4 with native computer use*
-Two days after GPT-5.3 Instant, OpenAI shipped GPT-5.4 in two flavours — Thinking (for Plus+ users) and Pro ($200/mo). The headline features: 47% fewer tokens on some tasks, native computer-use mode (mouse/keyboard control via screenshots), and new financial plugins. It beat human performance on the OSWorld desktop navigation benchmark (75% vs 72.4%).
+**OpenAI drops GPT-5.3 Instant**
+The new default ChatGPT model focuses on tone and conversational flow — fewer unnecessary refusals, less preachy preambles, and 27% fewer hallucinations when using web search. OpenAI says it addresses the "cringe" factor of 5.2 Instant, which had a habit of saying things like "Stop. Take a breath." Small model, big vibes upgrade.
 
-📌 *MIT researchers crack LLM memory bottleneck*
-A new technique called "Attention Matching" compacts the KV cache by up to 50x with minimal accuracy loss. Big deal for enterprise use cases like long-document analysis and autonomous coding agents where memory costs cap everything.
-
-*VC & FINANCE CORNER*
-
-💰 *GPT-5.4's Excel/Sheets plugins — one to watch*
-OpenAI's new financial integrations let GPT-5.4 work directly inside spreadsheet cells for granular analysis. Following similar moves from Anthropic's Claude for Finance, this is becoming a real battleground for enterprise finance workflows.
+**Defense contractors scrambling = opportunity for alternatives**
+With Anthropic effectively locked out of defense contracts, there's a vacuum forming. Defense-tech startups and alternative AI providers (Palantir's AIP, Scale AI, Mistral for non-US contracts) could benefit. If you're tracking deal flow in defense-adjacent AI, this is a catalyst moment — expect pitches from startups positioning as "Pentagon-safe" AI providers.
 ---
 
-${tonePrompt}
+STUDY THAT FORMAT. Each story is:
+1. A bold headline
+2. A SUBSTANTIAL paragraph (3-5 sentences) explaining what happened, why it matters, and what the implications are
+3. Written with personality and opinion — not a sterile summary
+4. Packed with specific details, names, numbers, quotes when available
+
+TONE: ${tonePrompt}
 
 RULES:
-- Each section gets a bold header with an emoji theme (use * for bold in the label)
-- Each story starts with a marker emoji (📌 for general news, 💰 for finance/VC, 🐦 for Twitter/X finds, 🔧 for tools, etc.)
-- Headlines are bold (wrapped in *)
-- The writeup flows naturally after the headline — 2-3 sentences that tell the reader WHY it matters
-- Make it feel like one continuous read, not isolated cards
-- Improve clickbait headlines but keep them informative
+- Every story gets its own bold headline followed by a meaty paragraph — NOT a one-liner summary
+- Each paragraph should be 3-5 sentences minimum. Dig into the WHY and SO WHAT
+- Add context the reader needs — who are the players, what's the backstory, why should they care
+- Group stories under section headers
+- NEVER write thin one-sentence summaries. That's the opposite of what we want
+- NEVER use: "In a move that...", "This comes as...", "It's worth noting...", "Interestingly...", "Let's dive in"
 - Don't add stories that aren't in the source material
-- NEVER use: "In a move that...", "This comes as...", "It's worth noting...", "Interestingly..."
-- Keep it tight — every sentence earns its place
+- Improve clickbait headlines to be informative and punchy
 
-OUTPUT FORMAT (respond with valid JSON only, no markdown):
+OUTPUT FORMAT (valid JSON only):
 {
   "sections": [
     {
       "topic": "<topic_id>",
-      "label": "<section_label — short and punchy, e.g. 'AI NEWS' not 'AI Threats and Developments'>",
-      "body": "<the full editorial writeup for this section as flowing paragraphs. Weave ALL stories in this section into connected prose. Bold key names/products with **double asterisks**. Reference sources inline like (Source Name). Each story should transition naturally into the next — use connective phrases, contrasts, or thematic links. Aim for 2-4 paragraphs per section. Include source URLs as markdown links: [Source Name](url).>",
+      "label": "<short section name e.g. GENERAL AI NEWS, VC & FINANCE CORNER, AI TOOLS>",
+      "body": "<ALL stories for this section, written EXACTLY in the format above. Each story: **Bold Headline**\\n\\nSubstantial paragraph of 3-5 sentences.\\n\\n**Next Headline**\\n\\nNext paragraph. Use \\n\\n between stories. Do NOT include source links in the body text — just write the editorial content.>",
       "stories": [
         {
           "headline": "<headline>",
-          "source_url": "<original url — DO NOT CHANGE>",
-          "source_name": "<original source name>",
+          "source_url": "<ORIGINAL url unchanged>",
+          "source_name": "<source name>",
           "topic": "<topic_id>"
         }
       ]
     }
   ],
-  "opener": "<one casual line setting the vibe — like texting a friend what's in the news today>"
+  "opener": "<casual one-liner — what's the vibe today>"
 }
 
-CRITICAL: The "body" field is the main content. Write it as flowing editorial paragraphs that weave all the section's stories together naturally. NOT a list of disconnected items. The "stories" array is just for metadata/link tracking — the real reading experience is the body text.
+The "body" field IS the briefing. Write it like a journalist, not a search engine. The "stories" array is just metadata for link tracking.
 
 RAW MATERIAL:
 ${rawMaterial}`;
@@ -83,7 +83,7 @@ ${rawMaterial}`;
       model: "gpt-4o-mini",
       messages: [{ role: "user", content: prompt }],
       temperature: 0.7,
-      max_tokens: 3000,
+      max_tokens: 4000,
       response_format: { type: "json_object" },
     });
 
@@ -92,7 +92,6 @@ ${rawMaterial}`;
 
     const parsed = JSON.parse(text);
 
-    // Reconstruct sections with body text and story metadata
     const rewrittenSections: TopicSection[] = (parsed.sections || []).map((section: {
       topic: string;
       label: string;
@@ -112,27 +111,19 @@ ${rawMaterial}`;
       })),
     }));
 
-    // Build editorial content string
     const editorialContent = `${parsed.opener || ""}\n\n${rewrittenSections.map(s =>
-      `## ${s.label}\n\n${(s as TopicSection & { body?: string }).body || ""}`
+      `## ${s.label}\n\n${s.body || ""}`
     ).join("\n\n---\n\n")}`;
 
-    return {
-      rewrittenSections,
-      editorialContent,
-    };
+    return { rewrittenSections, editorialContent };
   } catch (error) {
     console.error("OpenAI rewrite failed:", error);
-    // Fall back to raw content
     const fallbackContent = topicSections.map(s =>
-      `## ${s.stories[0]?.emoji || "📰"} ${s.label}\n\n${s.stories.map(st =>
-        `**${st.headline}**\n${st.summary}\n[${st.source_name}](${st.source_url})`
+      `## ${s.label}\n\n${s.stories.map(st =>
+        `**${st.headline}**\n${st.summary}`
       ).join("\n\n")}`
     ).join("\n\n---\n\n");
 
-    return {
-      rewrittenSections: topicSections,
-      editorialContent: fallbackContent,
-    };
+    return { rewrittenSections: topicSections, editorialContent: fallbackContent };
   }
 }

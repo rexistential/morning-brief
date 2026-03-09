@@ -12,7 +12,6 @@ export function BriefingView({ briefing }: { briefing: Briefing }) {
     year: "numeric",
   });
 
-  // Extract opener from content (first line before ## sections)
   const opener = briefing.content?.split("\n\n##")[0]?.trim();
 
   return (
@@ -23,7 +22,7 @@ export function BriefingView({ briefing }: { briefing: Briefing }) {
       </header>
 
       {opener && !opener.startsWith("##") && (
-        <p className="text-lg text-foreground/70 mb-10 leading-relaxed">
+        <p className="text-base text-foreground/60 mb-10 leading-relaxed">
           {opener}
         </p>
       )}
@@ -31,15 +30,16 @@ export function BriefingView({ briefing }: { briefing: Briefing }) {
       <div className="space-y-10">
         {briefing.topic_sections.map((section) => (
           <section key={section.topic}>
-            <h2 className="text-sm font-bold uppercase tracking-widest text-muted-foreground mb-4 border-b pb-2">
+            <h2 className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-5 border-b border-border/50 pb-2">
               {section.label}
             </h2>
+
             {section.body ? (
-              <div className="briefing-body">
+              <div>
                 <ReactMarkdown
                   components={{
                     p: ({ children }) => (
-                      <p className="text-[15px] leading-relaxed text-foreground/90 mb-4">
+                      <p className="text-[15px] leading-[1.75] text-foreground/85 mb-5">
                         {children}
                       </p>
                     ),
@@ -47,12 +47,7 @@ export function BriefingView({ briefing }: { briefing: Briefing }) {
                       <strong className="text-foreground font-semibold">{children}</strong>
                     ),
                     a: ({ href, children }) => (
-                      <a
-                        href={href}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-primary hover:underline"
-                      >
+                      <a href={href} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
                         {children}
                       </a>
                     ),
@@ -63,24 +58,44 @@ export function BriefingView({ briefing }: { briefing: Briefing }) {
                 >
                   {section.body}
                 </ReactMarkdown>
+
+                {/* Source links */}
+                {section.stories.some(s => s.source_url) && (
+                  <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2">
+                    {section.stories.filter(s => s.source_url).map((s, i) => (
+                      <a
+                        key={i}
+                        href={s.source_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-xs text-muted-foreground/50 hover:text-muted-foreground transition-colors"
+                      >
+                        {s.source_name} ↗
+                      </a>
+                    ))}
+                  </div>
+                )}
               </div>
             ) : (
-              <div className="space-y-4">
+              <div className="space-y-5">
                 {section.stories.map((story, i) => (
-                  <p key={i} className="text-[15px] leading-relaxed text-foreground/90">
-                    <strong className="text-foreground">{story.headline}</strong>
-                    {story.summary && <> — {story.summary}</>}
+                  <div key={i}>
+                    <p className="text-[15px] leading-[1.75] text-foreground/85">
+                      <strong className="text-foreground">{story.headline}</strong>
+                      <br />
+                      {story.summary}
+                    </p>
                     {story.source_url && (
                       <a
                         href={story.source_url}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="text-primary hover:underline ml-1 text-sm"
+                        className="text-xs text-muted-foreground/50 hover:text-muted-foreground"
                       >
-                        ({story.source_name})
+                        {story.source_name} ↗
                       </a>
                     )}
-                  </p>
+                  </div>
                 ))}
               </div>
             )}
