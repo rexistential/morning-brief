@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { Eye, EyeOff } from "lucide-react";
 
 const SAMPLE_STORIES = [
   { emoji: "🧠", topic: "Foundation Models", headline: "Anthropic releases Claude 4.5 with expanded reasoning", summary: "Major improvements in mathematical reasoning, code generation, and multi-step planning tasks." },
@@ -17,14 +18,16 @@ const SAMPLE_STORIES = [
 ];
 
 export default function LandingPage() {
-  const { user, profile, loading, signUp, signIn } = useAuth();
+  const { user, profile, loading, signUp, signIn, signInWithMagicLink } = useAuth();
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [mode, setMode] = useState<"signin" | "signup">("signin");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [mode, setMode] = useState<"signin" | "signup" | "forgot">("signin");
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
-  const [signedUp, setSignedUp] = useState(false);
+  const [successMessage, setSuccessMessage] = useState("");
 
   useEffect(() => {
     if (!loading && user) {
@@ -40,6 +43,18 @@ export default function LandingPage() {
     e.preventDefault();
     setSubmitting(true);
     setError("");
+    setSuccessMessage("");
+
+    if (mode === "forgot") {
+      const { error: err } = await signInWithMagicLink(email);
+      if (err) {
+        setError(err);
+      } else {
+        setSuccessMessage("Password reset link sent — check your email.");
+      }
+      setSubmitting(false);
+      return;
+    }
 
     if (mode === "signup") {
       if (password.length < 6) {
@@ -47,12 +62,16 @@ export default function LandingPage() {
         setSubmitting(false);
         return;
       }
+      if (password !== confirmPassword) {
+        setError("Passwords don't match");
+        setSubmitting(false);
+        return;
+      }
       const { error: err } = await signUp(email, password);
       if (err) {
         setError(err);
-      } else {
-        setSignedUp(true);
       }
+      // signUp with auto-confirm will log them in automatically
     } else {
       const { error: err } = await signIn(email, password);
       if (err) {
@@ -60,6 +79,14 @@ export default function LandingPage() {
       }
     }
     setSubmitting(false);
+  };
+
+  const switchMode = (newMode: "signin" | "signup" | "forgot") => {
+    setMode(newMode);
+    setError("");
+    setSuccessMessage("");
+    setPassword("");
+    setConfirmPassword("");
   };
 
   if (loading) {
@@ -88,86 +115,136 @@ export default function LandingPage() {
             Get a personalized AI-generated news briefing every morning. Pick your topics, choose your style, and start your day informed.
           </p>
 
-          {signedUp ? (
-            <Card className="max-w-md mx-auto">
-              <CardContent className="pt-6 text-center">
-                <p className="text-lg font-medium mb-2">Check your email</p>
-                <p className="text-muted-foreground">
-                  We sent a confirmation link to <strong>{email}</strong>. Click it to activate your account, then come back and sign in.
-                </p>
-              </CardContent>
-            </Card>
-          ) : (
-            <Card className="max-w-sm mx-auto text-left">
-              <CardHeader className="text-center">
-                <CardTitle>{mode === "signin" ? "Sign in" : "Create account"}</CardTitle>
-                <CardDescription>
-                  {mode === "signin"
-                    ? "Welcome back — sign in to your briefing."
-                    : "Set up your personalized AI briefing in under a minute."}
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <form onSubmit={handleSubmit} className="space-y-4">
-                  <div>
-                    <Label htmlFor="email">Email</Label>
-                    <Input
-                      id="email"
-                      type="email"
-                      placeholder="you@example.com"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      required
-                      className="mt-1"
-                    />
-                  </div>
+          <Card className="max-w-sm mx-auto text-left">
+            <CardHeader className="text-center">
+              <CardTitle>
+                {mode === "signin" ? "Sign in" : mode === "signup" ? "Create account" : "Reset password"}
+              </CardTitle>
+              <CardDescription>
+                {mode === "signin"
+                  ? "Welcome back — sign in to your briefing."
+                  : mode === "signup"
+                    ? "Set up your personalized AI briefing in under a minute."
+                    : "Enter your email and we'll send you a reset link."}
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <form onSubmit={handleSubmit} className="space-y-4">
+                <div>
+                  <Label htmlFor="email">Email</Label>
+                  <Input
+                    id="email"
+                    type="email"
+                    placeholder="you@example.com"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    required
+                    className="mt-1"
+                  />
+                </div>
+
+                {mode !== "forgot" && (
                   <div>
                     <Label htmlFor="password">Password</Label>
-                    <Input
-                      id="password"
-                      type="password"
-                      placeholder={mode === "signup" ? "At least 6 characters" : "••••••••"}
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      required
-                      className="mt-1"
-                    />
+                    <div className="relative mt-1">
+                      <Input
+                        id="password"
+                        type={showPassword ? "text" : "password"}
+                        placeholder={mode === "signup" ? "At least 6 characters" : "••••••••"}
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        required
+                        className="pr-10"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword(!showPassword)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                      >
+                        {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      </button>
+                    </div>
                   </div>
-                  {error && <p className="text-destructive text-sm">{error}</p>}
-                  <Button type="submit" className="w-full" disabled={submitting}>
-                    {submitting
-                      ? "Hold on..."
-                      : mode === "signin"
-                        ? "Sign in"
-                        : "Create account"}
-                  </Button>
-                </form>
-                <div className="mt-4 text-center text-sm text-muted-foreground">
-                  {mode === "signin" ? (
-                    <>
+                )}
+
+                {mode === "signup" && (
+                  <div>
+                    <Label htmlFor="confirm-password">Confirm password</Label>
+                    <div className="relative mt-1">
+                      <Input
+                        id="confirm-password"
+                        type={showPassword ? "text" : "password"}
+                        placeholder="Re-enter your password"
+                        value={confirmPassword}
+                        onChange={(e) => setConfirmPassword(e.target.value)}
+                        required
+                        className="pr-10"
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {error && <p className="text-destructive text-sm">{error}</p>}
+                {successMessage && <p className="text-green-600 text-sm">{successMessage}</p>}
+
+                <Button type="submit" className="w-full" disabled={submitting}>
+                  {submitting
+                    ? "Hold on..."
+                    : mode === "signin"
+                      ? "Sign in"
+                      : mode === "signup"
+                        ? "Create account"
+                        : "Send reset link"}
+                </Button>
+              </form>
+
+              <div className="mt-4 space-y-2 text-center text-sm text-muted-foreground">
+                {mode === "signin" && (
+                  <>
+                    <div>
+                      <button
+                        className="text-primary underline-offset-4 hover:underline"
+                        onClick={() => switchMode("forgot")}
+                      >
+                        Forgot password?
+                      </button>
+                    </div>
+                    <div>
                       Don&apos;t have an account?{" "}
                       <button
                         className="text-primary underline-offset-4 hover:underline"
-                        onClick={() => { setMode("signup"); setError(""); }}
+                        onClick={() => switchMode("signup")}
                       >
                         Sign up
                       </button>
-                    </>
-                  ) : (
-                    <>
-                      Already have an account?{" "}
-                      <button
-                        className="text-primary underline-offset-4 hover:underline"
-                        onClick={() => { setMode("signin"); setError(""); }}
-                      >
-                        Sign in
-                      </button>
-                    </>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          )}
+                    </div>
+                  </>
+                )}
+                {mode === "signup" && (
+                  <div>
+                    Already have an account?{" "}
+                    <button
+                      className="text-primary underline-offset-4 hover:underline"
+                      onClick={() => switchMode("signin")}
+                    >
+                      Sign in
+                    </button>
+                  </div>
+                )}
+                {mode === "forgot" && (
+                  <div>
+                    Remember your password?{" "}
+                    <button
+                      className="text-primary underline-offset-4 hover:underline"
+                      onClick={() => switchMode("signin")}
+                    >
+                      Sign in
+                    </button>
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
         </section>
 
         <section className="pb-20">
