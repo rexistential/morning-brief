@@ -1,7 +1,13 @@
-import { Resend } from "resend";
+import nodemailer from "nodemailer";
 import type { Briefing, TopicSection } from "@/lib/types";
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+const transporter = nodemailer.createTransport({
+  service: "gmail",
+  auth: {
+    user: process.env.GMAIL_USER,
+    pass: process.env.GMAIL_APP_PASSWORD,
+  },
+});
 
 function sectionToHtml(section: TopicSection): string {
   const stories = section.body
@@ -62,8 +68,8 @@ function buildEmailHtml(briefing: Briefing): string {
     ${sections}
     <div style="margin-top:40px;padding-top:20px;border-top:1px solid #e5e7eb;">
       <p style="font-size:12px;color:#9ca3af;margin:0;">
-        <a href="https://morning-brief.vercel.app/dashboard/preferences" style="color:#9ca3af;">Manage preferences</a> · 
-        <a href="https://morning-brief.vercel.app/dashboard" style="color:#9ca3af;">Read on web</a>
+        <a href="https://morning-brief-gilt.vercel.app/dashboard/preferences" style="color:#9ca3af;">Manage preferences</a> · 
+        <a href="https://morning-brief-gilt.vercel.app/dashboard" style="color:#9ca3af;">Read on web</a>
       </p>
     </div>
   </div>
@@ -84,17 +90,12 @@ export async function sendBriefingEmail(
   const html = buildEmailHtml(briefing);
 
   try {
-    const { error } = await resend.emails.send({
-      from: "Morning Brief <onboarding@resend.dev>",
+    await transporter.sendMail({
+      from: `"Morning Brief" <${process.env.GMAIL_USER}>`,
       to: toEmail,
       subject: `Morning Brief — ${date}`,
       html,
     });
-
-    if (error) {
-      console.error("[EMAIL] Resend error:", error);
-      return { success: false, error: error.message };
-    }
 
     return { success: true };
   } catch (err) {
