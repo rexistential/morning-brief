@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createServerSupabaseClient } from "@/lib/supabase";
+import { createClient } from "@supabase/supabase-js";
+import { sendBriefingEmail } from "@/lib/email";
 
 export async function POST(request: NextRequest) {
   try {
@@ -9,11 +10,14 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "briefingId is required" }, { status: 400 });
     }
 
-    const supabase = createServerSupabaseClient();
+    const supabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!
+    );
 
     const { data: briefing, error } = await supabase
       .from("briefings")
-      .select("*, profiles!inner(email)")
+      .select("*")
       .eq("id", briefingId)
       .single();
 
@@ -21,16 +25,30 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Briefing not found" }, { status: 404 });
     }
 
-    // Mock email sending - Resend API key not available yet
-    console.log(`[MOCK EMAIL] Sending briefing ${briefingId} to ${(briefing as Record<string, unknown>).profiles}`);
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("email")
+      .eq("id", briefing.user_id)
+      .single();
 
-    await supabase
-      .from("briefings")
-      .update({ sent_at: new Date().toISOString(), sent_via: "email" })
-      .eq("id", briefingId);
+    if (!profile?.email) {
+      return NextResponse.json({ error: "User email not found" }, { status: 404 });
+    }
 
-    return NextResponse.json({ success: true, message: "Email sent (mocked)" });
-  } catch {
+    const result = await sendBriefingEmail(briefing, profile.email);
+
+    if (result.success) {
+      await supabase
+        .from("briefings")
+        .update({ sent_at: new Date().toISOString(), sent_via: "email" })
+        .eq("id", briefingId);
+
+      return NextResponse.json({ success: true });
+    } else {
+      return NextResponse.json({ error: result.error }, { status: 500 });
+    }
+  } catch (err) {
+    console.error("[SEND-EMAIL] Error:", err);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }

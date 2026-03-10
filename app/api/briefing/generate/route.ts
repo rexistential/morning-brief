@@ -4,6 +4,7 @@ import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { fetchRealNews } from "@/lib/news-fetcher";
 import { rewriteBriefing } from "@/lib/briefing-writer";
+import { sendBriefingEmail } from "@/lib/email";
 
 export async function POST(request: NextRequest) {
   try {
@@ -102,8 +103,17 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: insertError.message }, { status: 500 });
     }
 
-    if (profile.email_enabled) {
-      console.log(`[EMAIL] Would send briefing to ${profile.email} (Resend not configured yet)`);
+    if (profile.email_enabled && briefing) {
+      const emailResult = await sendBriefingEmail(briefing, profile.email);
+      if (emailResult.success) {
+        await admin
+          .from("briefings")
+          .update({ sent_at: new Date().toISOString(), sent_via: "email" })
+          .eq("id", briefing.id);
+        console.log(`[EMAIL] Sent briefing to ${profile.email}`);
+      } else {
+        console.error(`[EMAIL] Failed to send to ${profile.email}:`, emailResult.error);
+      }
     }
 
     return NextResponse.json({ briefing });
