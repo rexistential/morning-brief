@@ -1,6 +1,7 @@
 "use client";
 
 import ReactMarkdown from "react-markdown";
+import { BriefingPlayer } from "@/components/briefing/briefing-player";
 import type { Briefing } from "@/lib/types";
 
 export function BriefingView({ briefing }: { briefing: Briefing }) {
@@ -20,6 +21,8 @@ export function BriefingView({ briefing }: { briefing: Briefing }) {
         <h1 className="text-3xl font-bold tracking-tight">Morning Brief</h1>
         <p className="text-sm text-muted-foreground mt-1">{formatted}</p>
       </header>
+
+      <BriefingPlayer briefing={briefing} />
 
       {opener && !opener.startsWith("##") && (
         <p className="text-base text-foreground/60 mb-10 leading-relaxed">
