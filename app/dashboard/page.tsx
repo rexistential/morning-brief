@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Loader2, RefreshCw } from "lucide-react";
 import type { Briefing } from "@/lib/types";
+import { toast } from "sonner";
 
 export default function DashboardPage() {
   const { user } = useAuth();
@@ -39,9 +40,11 @@ export default function DashboardPage() {
       });
       if (res.ok) {
         await fetchToday();
+      } else {
+        toast.error("Failed to generate briefing");
       }
     } catch {
-      // ignore
+      toast.error("Failed to generate briefing");
     }
     setGenerating(false);
   };

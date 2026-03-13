@@ -13,7 +13,7 @@ const NAV_ITEMS = [
   { href: "/dashboard/preferences", label: "Preferences", icon: Settings },
 ];
 
-export function Sidebar() {
+export function Sidebar({ onNavigate }: { onNavigate?: () => void } = {}) {
   const pathname = usePathname();
   const { profile, signOut } = useAuth();
 
@@ -34,6 +34,7 @@ export function Sidebar() {
             <Link
               key={item.href}
               href={item.href}
+              onClick={onNavigate}
               className={`flex items-center gap-3 px-3 py-2 rounded-md text-sm transition-colors ${
                 isActive
                   ? "bg-primary text-primary-foreground font-medium"
@@ -49,6 +50,7 @@ export function Sidebar() {
         {profile?.is_admin && (
           <Link
             href="/admin"
+            onClick={onNavigate}
             className={`flex items-center gap-3 px-3 py-2 rounded-md text-sm transition-colors ${
               pathname === "/admin"
                 ? "bg-primary text-primary-foreground font-medium"

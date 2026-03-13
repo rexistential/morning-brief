@@ -12,6 +12,7 @@ import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { Loader2, Save } from "lucide-react";
+import { toast } from "sonner";
 
 export default function PreferencesPage() {
   const { profile, refreshProfile } = useAuth();
@@ -23,7 +24,6 @@ export default function PreferencesPage() {
   const [emailAddress, setEmailAddress] = useState("");
   const [emailEnabled, setEmailEnabled] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [saved, setSaved] = useState(false);
 
   useEffect(() => {
     if (profile) {
@@ -62,11 +62,12 @@ export default function PreferencesPage() {
     });
     
     if (!res.ok) {
-      console.error("Failed to save preferences");
+      toast.error("Failed to save preferences");
+      setSaving(false);
+      return;
     }
     await refreshProfile();
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2000);
+    toast.success("Preferences saved");
     setSaving(false);
   };
 
@@ -87,11 +88,12 @@ export default function PreferencesPage() {
           <CardTitle>Topics</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             {TOPICS.map(topic => (
               <button
                 key={topic.id}
                 onClick={() => toggleTopic(topic.id)}
+                aria-pressed={topics.includes(topic.id)}
                 className={`flex items-center gap-2 p-3 rounded-lg border text-left text-sm transition-colors ${
                   topics.includes(topic.id)
                     ? "border-primary bg-primary/5 font-medium"
@@ -118,6 +120,7 @@ export default function PreferencesPage() {
                 <button
                   key={opt.id}
                   onClick={() => setBriefingLength(opt.id)}
+                  aria-pressed={briefingLength === opt.id}
                   className={`p-3 rounded-lg border text-center text-sm transition-colors ${
                     briefingLength === opt.id
                       ? "border-primary bg-primary/5 font-medium"
@@ -137,6 +140,7 @@ export default function PreferencesPage() {
                 <button
                   key={opt.id}
                   onClick={() => setBriefingTone(opt.id)}
+                  aria-pressed={briefingTone === opt.id}
                   className={`p-3 rounded-lg border text-center text-sm transition-colors ${
                     briefingTone === opt.id
                       ? "border-primary bg-primary/5 font-medium"
@@ -201,7 +205,7 @@ export default function PreferencesPage() {
       <div className="flex items-center gap-3">
         <Button onClick={handleSave} disabled={saving}>
           {saving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
-          {saved ? "Saved!" : "Save preferences"}
+          Save preferences
         </Button>
       </div>
 

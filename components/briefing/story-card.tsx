@@ -58,13 +58,13 @@ export function StoryCard({ story, briefingId }: { story: Story; briefingId?: st
           <span className="mr-1.5">{story.emoji}</span>
           <strong>{story.headline}</strong>
           <br />
-          <span className="text-foreground/80">{story.summary}</span>
+          <span className="text-foreground/90">{story.summary}</span>
         </p>
 
         <div className="flex items-center gap-3 mt-1.5">
           <button
             onClick={toggleExpand}
-            className="inline-flex items-center gap-1 text-xs text-primary/70 hover:text-primary transition-colors"
+            className="inline-flex items-center gap-1 text-xs text-primary hover:text-primary transition-colors"
           >
             {loading ? (
               <>
@@ -89,7 +89,7 @@ export function StoryCard({ story, briefingId }: { story: Story; briefingId?: st
             target="_blank"
             rel="noopener noreferrer"
             onClick={handleClick}
-            className="inline-flex items-center gap-1 text-xs text-muted-foreground/60 hover:text-muted-foreground transition-colors"
+            className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-muted-foreground transition-colors"
           >
             {story.source_name}
             <ExternalLink className="h-3 w-3" />
@@ -112,7 +112,7 @@ export function StoryCard({ story, briefingId }: { story: Story; briefingId?: st
               </a>
             </p>
           ) : articleContent ? (
-            <div className="text-sm text-foreground/80 whitespace-pre-line leading-relaxed max-h-96 overflow-y-auto">
+            <div className="text-sm text-foreground/90 whitespace-pre-line leading-relaxed max-h-96 overflow-y-auto">
               {articleContent}
             </div>
           ) : null}

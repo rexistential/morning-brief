@@ -25,7 +25,7 @@ export function BriefingView({ briefing }: { briefing: Briefing }) {
       <BriefingPlayer briefing={briefing} />
 
       {opener && !opener.startsWith("##") && (
-        <p className="text-base text-foreground/60 mb-10 leading-relaxed">
+        <p className="text-base text-muted-foreground mb-10 leading-relaxed">
           {opener}
         </p>
       )}
@@ -71,7 +71,7 @@ export function BriefingView({ briefing }: { briefing: Briefing }) {
                         href={s.source_url}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="text-xs text-muted-foreground/50 hover:text-muted-foreground transition-colors"
+                        className="text-xs text-muted-foreground hover:text-muted-foreground transition-colors"
                       >
                         {s.source_name} ↗
                       </a>
@@ -93,7 +93,7 @@ export function BriefingView({ briefing }: { briefing: Briefing }) {
                         href={story.source_url}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="text-xs text-muted-foreground/50 hover:text-muted-foreground"
+                        className="text-xs text-muted-foreground hover:text-muted-foreground"
                       >
                         {story.source_name} ↗
                       </a>

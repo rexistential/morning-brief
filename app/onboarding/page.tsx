@@ -106,11 +106,12 @@ export default function OnboardingPage() {
               <CardDescription>Choose the topics you want covered in your daily briefing.</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {TOPICS.map(topic => (
                   <button
                     key={topic.id}
                     onClick={() => toggleTopic(topic.id)}
+                    aria-pressed={topics.includes(topic.id)}
                     className={`flex items-center gap-2 p-3 rounded-lg border text-left text-sm transition-colors ${
                       topics.includes(topic.id)
                         ? "border-primary bg-primary/5 font-medium"
@@ -145,6 +146,7 @@ export default function OnboardingPage() {
                     <button
                       key={opt.id}
                       onClick={() => setBriefingLength(opt.id)}
+                      aria-pressed={briefingLength === opt.id}
                       className={`p-3 rounded-lg border text-center text-sm transition-colors ${
                         briefingLength === opt.id
                           ? "border-primary bg-primary/5 font-medium"
@@ -164,6 +166,7 @@ export default function OnboardingPage() {
                     <button
                       key={opt.id}
                       onClick={() => setBriefingTone(opt.id)}
+                      aria-pressed={briefingTone === opt.id}
                       className={`p-3 rounded-lg border text-center text-sm transition-colors ${
                         briefingTone === opt.id
                           ? "border-primary bg-primary/5 font-medium"
