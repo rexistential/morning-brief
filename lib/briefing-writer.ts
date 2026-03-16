@@ -7,6 +7,8 @@ const TONE_PROMPTS: Record<string, string> = {
   punchy: `Conversational, opinionated, zero filler. Tell people WHY something matters, not just what happened. Use dashes freely. Short punchy lines mixed with longer sentences when context needs it. Asides like "one to watch" or "big deal for X" when warranted. Never say "In a move that" or "This comes as" — just say the thing.`,
   neutral: `Clean and factual but still human. Lead with what matters most. No corporate voice. Concise but don't strip out context that makes stories interesting.`,
   technical: `Dense and specific. Model names, benchmarks, architecture details, funding amounts. Assume the reader is deeply technical. Readable — not a paper abstract.`,
+  dense: `Pure facts. Lead with numbers, names, amounts, dates. Strip ALL editorializing - no 'impressive', 'staggering', 'formidable'. No opinion, no 'why it matters' commentary. Each story should read like a wire service brief: who did what, when, how much. Example: 'Anthropic raised $3.5B in Series E at $61.5B post-money valuation, led by Lightspeed Venture Partners. Google invested an additional $1B in March 2025.' That density. Every word earns its place.`,
+  trends: `You are extracting PATTERNS, not summarizing stories. Look across all the raw material and identify 3-5 recurring themes, emerging trends, or connected signals. Each theme gets a bold title and a paragraph explaining the pattern with specific evidence from multiple stories. Think lossy compression - what are the meta-narratives? What keeps coming up? Ignore one-off stories that do not connect to anything. Output fewer items but with deeper cross-referencing.`,
 };
 
 export async function rewriteBriefing(

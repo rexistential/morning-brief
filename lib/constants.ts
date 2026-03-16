@@ -22,6 +22,8 @@ export const BRIEFING_TONES = [
   { id: "punchy", label: "Punchy & editorial" },
   { id: "neutral", label: "Neutral & factual" },
   { id: "technical", label: "Technical & detailed" },
+  { id: "dense", label: "Dense & facts-only" },
+  { id: "trends", label: "Trends & patterns" },
 ] as const;
 
 export const SEND_TIMES = [

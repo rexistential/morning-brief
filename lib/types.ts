@@ -4,7 +4,7 @@ export interface Profile {
   display_name: string | null;
   topics: string[];
   briefing_length: "quick" | "standard" | "deep";
-  briefing_tone: "punchy" | "neutral" | "technical";
+  briefing_tone: "punchy" | "neutral" | "technical" | "dense" | "trends";
   send_time: string;
   timezone: string;
   email_enabled: boolean;

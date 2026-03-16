@@ -10,13 +10,22 @@ const transporter = nodemailer.createTransport({
 });
 
 function sectionToHtml(section: TopicSection): string {
+  const sourcesHtml = section.body && section.stories.length > 0
+    ? `<div style="margin-top:12px;font-size:12px;color:#9ca3af;">Sources: ${
+        section.stories
+          .filter(s => s.source_url)
+          .map(s => `<a href="${s.source_url}" style="color:#9ca3af;text-decoration:none;">${s.source_name || "Source"} ↗</a>`)
+          .join(" · ")
+      }</div>`
+    : "";
+
   const stories = section.body
     ? `<div style="font-size:15px;line-height:1.75;color:#374151;">${section.body
         .replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>")
         .replace(/\*(.*?)\*/g, "<em>$1</em>")
         .replace(/\[(.*?)\]\((.*?)\)/g, '<a href="$2" style="color:#2563eb;text-decoration:none;">$1</a>')
         .replace(/\n\n/g, "</div><div style=\"font-size:15px;line-height:1.75;color:#374151;margin-top:12px;\">")
-      }</div>`
+      }</div>${sourcesHtml}`
     : section.stories
         .map(
           (s) =>

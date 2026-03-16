@@ -274,6 +274,10 @@ export async function fetchRealNews(
   const topicSections: TopicSection[] = [];
   const allStories: Story[] = [];
 
+  // Global dedup sets across all topics
+  const globalSeenUrls = new Set<string>();
+  const globalSeenHeadlines: string[] = [];
+
   for (const topicId of topics) {
     const topicInfo = getTopicById(topicId);
     if (!topicInfo) continue;
@@ -334,8 +338,14 @@ export async function fetchRealNews(
       }
     });
 
-    // Filter out duplicates from previous days
-    const fresh = unique.filter(r => !isDuplicate(r.url, r.title));
+    // Filter out duplicates from previous days and cross-topic duplicates
+    const fresh = unique.filter(r => {
+      if (isDuplicate(r.url, r.title)) return false;
+      const normUrl = normalizeUrl(r.url);
+      if (globalSeenUrls.has(normUrl)) return false;
+      if (globalSeenHeadlines.some(prev => headlinesSimilar(prev, r.title))) return false;
+      return true;
+    });
 
     const topicStories: Story[] = fresh.slice(0, storiesPerTopic).map(r => ({
       emoji: r.isTwitter ? "🐦" : emoji,
@@ -345,6 +355,12 @@ export async function fetchRealNews(
       source_name: r.isRss && r.sourceName ? r.sourceName : extractSourceName(r.url),
       topic: topicId,
     }));
+
+    // Add to global dedup sets
+    for (const s of topicStories) {
+      globalSeenUrls.add(normalizeUrl(s.source_url));
+      globalSeenHeadlines.push(s.headline);
+    }
 
     if (topicStories.length > 0) {
       topicSections.push({
