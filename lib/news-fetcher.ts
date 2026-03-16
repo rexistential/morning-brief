@@ -4,6 +4,18 @@ import Parser from "rss-parser";
 
 const rssParser = new Parser({ timeout: 10000 });
 
+function decodeHtmlEntities(text: string): string {
+  return text
+    .replace(/&#x27;/g, "'")
+    .replace(/&#39;/g, "'")
+    .replace(/&quot;/g, '"')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&#(\d+);/g, (_, num) => String.fromCharCode(parseInt(num, 10)))
+    .replace(/&#x([0-9a-fA-F]+);/g, (_, hex) => String.fromCharCode(parseInt(hex, 16)));
+}
+
 // RSS feeds mapped to topics. Each feed can be relevant to multiple topics.
 const RSS_FEEDS: Array<{ name: string; url: string; topics: string[] }> = [
   { name: "Pragmatic Engineer", url: "https://feeds.feedburner.com/ThePragmaticEngineer", topics: ["dev-tools"] },
@@ -47,11 +59,18 @@ async function fetchRssFeeds(topicId: string): Promise<RssStory[]> {
           .slice(0, 300)
           .trim();
 
-        if (item.title && item.link) {
+        // Strip arXiv metadata prefix
+        const cleanSummary = summary
+          .replace(/^arXiv:\S+\s+Announce Type:\s*\w+\s*Abstract:\s*/i, '')
+          .trim();
+
+        const cleanTitle = item.title?.replace(/^arXiv:\S+\s+/, '') || item.title;
+
+        if (cleanTitle && item.link) {
           stories.push({
-            title: item.title,
+            title: decodeHtmlEntities(cleanTitle),
             url: item.link,
-            summary: summary || item.title,
+            summary: decodeHtmlEntities(cleanSummary || cleanTitle),
             sourceName: feed.name,
             publishedAt: pubDate,
           });
@@ -246,7 +265,12 @@ function headlinesSimilar(a: string, b: string): boolean {
   const nb = normalizeHeadline(b);
   if (na === nb) return true;
 
-  // Check if one contains most of the other (>70% word overlap)
+  // Check if one is a prefix/suffix of the other (source name appended)
+  const shorter = na.length <= nb.length ? na : nb;
+  const longer = na.length <= nb.length ? nb : na;
+  if (shorter.split(" ").length >= 5 && longer.startsWith(shorter)) return true;
+
+  // Check word overlap (>70%)
   const wordsA = new Set(na.split(" "));
   const wordsB = new Set(nb.split(" "));
   const overlap = [...wordsA].filter(w => wordsB.has(w)).length;
@@ -349,8 +373,8 @@ export async function fetchRealNews(
 
     const topicStories: Story[] = fresh.slice(0, storiesPerTopic).map(r => ({
       emoji: r.isTwitter ? "🐦" : emoji,
-      headline: r.title,
-      summary: r.description,
+      headline: decodeHtmlEntities(r.title),
+      summary: decodeHtmlEntities(r.description),
       source_url: r.url,
       source_name: r.isRss && r.sourceName ? r.sourceName : extractSourceName(r.url),
       topic: topicId,
