@@ -44,6 +44,18 @@ export interface Briefing {
   created_at: string;
 }
 
+export interface DailyNewsPoolItem {
+  id: string;
+  fetch_date: string;
+  topic: string;
+  headline: string;
+  summary: string;
+  source_url: string;
+  source_name: string;
+  emoji: string;
+  fetched_at: string;
+}
+
 export interface StoryClick {
   id: string;
   user_id: string;
