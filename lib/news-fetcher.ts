@@ -156,6 +156,17 @@ const JUNK_URL_PATTERNS = [
   /indeed\.com/i,
   /linkedin\.com\/company/i,
   /\.techspot\.com\/downloads/i,
+  /zoominfo\.com/i,
+  /youtube\.com\/watch/i,
+  /\/faq\b/i,
+  /casino/i,
+  /nightrush/i,
+  /gambling/i,
+  /betting\.com/i,
+  /g2\.com\/products/i,
+  /capterra\.com/i,
+  /trustpilot\.com/i,
+  /softwareadvice\.com/i,
 ];
 
 const JUNK_TITLE_PATTERNS = [
@@ -166,6 +177,11 @@ const JUNK_TITLE_PATTERNS = [
   /best .* alternative/i,
   /review \d{4}/i,
   /^.{0,5}$/,  // too short
+  /complete.*comparison/i,
+  /top \d+.*(casino|software|tools|platforms) (for|in) \d{4}/i,
+  /pricing.*alternatives.*comparisons/i,
+  /overview.*news.*similar companies/i,
+  /vs\.?\s/i,  // "X vs Y" comparison articles
 ];
 
 function isJunkResult(url: string, title: string): boolean {
