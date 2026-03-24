@@ -195,11 +195,6 @@ function isJunkResult(url: string, title: string): boolean {
   return JUNK_TITLE_PATTERNS.some((p) => p.test(title));
 }
 
-function isJunkResult(url: string, title: string): boolean {
-  return JUNK_URL_PATTERNS.some((p) => p.test(url)) ||
-    JUNK_TITLE_PATTERNS.some((p) => p.test(title));
-}
-
 async function searchBrave(
   query: string,
   count: number = 5,
