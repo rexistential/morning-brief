@@ -25,7 +25,8 @@ export async function POST(request: NextRequest) {
   try {
     const { topicSections } = await fetchRealNews(allTopicIds, "deep");
 
-    const rows = topicSections.flatMap((section) =>
+    // Build rows — portfolio columns are optional (may not exist in DB yet)
+    const baseRows = topicSections.flatMap((section) =>
       section.stories.map((story) => ({
         fetch_date: today,
         topic: story.topic || section.topic,
@@ -39,6 +40,18 @@ export async function POST(request: NextRequest) {
         affected_portfolio_company: story.affected_portfolio_company || null,
       }))
     );
+
+    // Try with portfolio columns first, fall back to without if columns don't exist
+    let rows = baseRows;
+    const { error: testError } = await admin
+      .from("daily_news_pool")
+      .select("portfolio_company_id")
+      .limit(0);
+    
+    if (testError) {
+      // Portfolio columns don't exist yet — strip them
+      rows = baseRows.map(({ portfolio_company_id, is_competitor_news, affected_portfolio_company, ...rest }) => rest) as typeof baseRows;
+    }
 
     if (rows.length === 0) {
       return NextResponse.json({ stored: 0, message: "No stories fetched" });
