@@ -354,32 +354,45 @@ export async function fetchRealNews(
     `[news-fetcher] Searching ${PORTFOLIO_COMPANIES.length} portfolio companies...`
   );
 
-  // Batch portfolio company searches (parallel, 5 at a time)
-  const portfolioBatches: PortfolioCompany[][] = [];
-  for (let i = 0; i < PORTFOLIO_COMPANIES.length; i += 5) {
-    portfolioBatches.push(PORTFOLIO_COMPANIES.slice(i, i + 5));
-  }
-
+  // Batch portfolio company searches — use "pw" (past week) for better coverage
+  // Group companies into combined searches to reduce API calls
+  // e.g. search 3-4 companies per query using OR
   const companiesWithNews = new Set<string>();
 
-  for (const batch of portfolioBatches) {
+  // Strategy: combine 3 companies per Brave search to stay under rate limits
+  const companyChunks: PortfolioCompany[][] = [];
+  for (let i = 0; i < PORTFOLIO_COMPANIES.length; i += 3) {
+    companyChunks.push(PORTFOLIO_COMPANIES.slice(i, i + 3));
+  }
+
+  // Run in serial batches of 3 queries to avoid rate limits
+  for (let batchIdx = 0; batchIdx < companyChunks.length; batchIdx += 3) {
+    const batchOfChunks = companyChunks.slice(batchIdx, batchIdx + 3);
+    
     const batchResults = await Promise.all(
-      batch.map(async (company) => {
-        const searchTerms = company.searchTerms.slice(0, 2);
-        const query = searchTerms.map((t) => `"${t}"`).join(" OR ") +
-          " news funding launch partnership";
-        const results = await searchBrave(query, 4, "pd");
-        return { company, results };
+      batchOfChunks.map(async (chunk) => {
+        // Combine company names into one OR query
+        const queryParts = chunk.map((c) => `"${c.name}"`);
+        const query = queryParts.join(" OR ");
+        const results = await searchBrave(query, 6, "pw");
+        return { chunk, results };
       })
     );
 
-    for (const { company, results } of batchResults) {
+    for (const { chunk, results } of batchResults) {
       for (const r of results) {
         const headline = decodeHtmlEntities(r.title);
         const summary = decodeHtmlEntities(r.description);
+        const fullText = `${headline} ${summary}`.toLowerCase();
 
         if (isDuplicate(r.url, headline)) continue;
         if (isGlobalDuplicate(r.url, headline)) continue;
+
+        // Figure out which company this result is about
+        const matchedCompany = chunk.find((c) =>
+          c.searchTerms.some((term) => fullText.includes(term.toLowerCase()))
+        );
+        if (!matchedCompany) continue;
 
         const story: TaggedStory = {
           emoji: "📊",
@@ -388,14 +401,19 @@ export async function fetchRealNews(
           source_url: r.url,
           source_name: extractSourceName(r.url),
           topic: "portfolio-news",
-          portfolio_company_id: company.id,
+          portfolio_company_id: matchedCompany.id,
           is_competitor_news: false,
         };
 
         addToGlobalDedup(story);
         allTaggedStories.push(story);
-        companiesWithNews.add(company.id);
+        companiesWithNews.add(matchedCompany.id);
       }
+    }
+
+    // Small delay between batches to avoid rate limits
+    if (batchIdx + 3 < companyChunks.length) {
+      await new Promise((resolve) => setTimeout(resolve, 500));
     }
   }
 
@@ -417,25 +435,29 @@ export async function fetchRealNews(
     }
   }
 
-  // Also search top competitors of all companies (capped)
-  const topCompetitorSearches = PORTFOLIO_COMPANIES.flatMap((c) =>
-    c.competitors.slice(0, 1).map((comp) => ({
-      competitor: comp,
-      affectedCompany: c,
-    }))
-  ).filter(
-    (cs) =>
-      !competitorSearches.some(
-        (existing) =>
-          existing.competitor === cs.competitor &&
-          existing.affectedCompany.id === cs.affectedCompany.id
-      )
-  );
+  // Only search competitors of companies that had news (keep it focused)
+  // Plus a small set of "always watch" competitors for the biggest portfolio companies
+  const alwaysWatchCompanies = PORTFOLIO_COMPANIES
+    .filter((c) => ["mistral-ai", "bitwarden", "bumble", "gopuff", "semrush", "creditas", "honeycomb"].includes(c.id))
+    .flatMap((c) =>
+      c.competitors.slice(0, 1).map((comp) => ({
+        competitor: comp,
+        affectedCompany: c,
+      }))
+    )
+    .filter(
+      (cs) =>
+        !competitorSearches.some(
+          (existing) =>
+            existing.competitor === cs.competitor &&
+            existing.affectedCompany.id === cs.affectedCompany.id
+        )
+    );
 
   const allCompetitorSearches = [
     ...competitorSearches,
-    ...topCompetitorSearches.slice(0, 15),
-  ];
+    ...alwaysWatchCompanies,
+  ].slice(0, 20);
 
   console.log(
     `[news-fetcher] Searching ${allCompetitorSearches.length} competitors...`
@@ -450,8 +472,8 @@ export async function fetchRealNews(
   for (const batch of competitorBatches) {
     const batchResults = await Promise.all(
       batch.map(async ({ competitor, affectedCompany }) => {
-        const query = `"${competitor}" news`;
-        const results = await searchBrave(query, 3, "pd");
+        const query = `"${competitor}" news OR launch OR funding OR update`;
+        const results = await searchBrave(query, 3, "pw");
         return { competitor, affectedCompany, results };
       })
     );
