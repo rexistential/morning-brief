@@ -240,9 +240,12 @@ export async function POST(request: NextRequest) {
       let topicSections: TopicSection[] = [];
 
       if (poolAvailable) {
-        // Phase 2: Use daily_news_pool filtered by user's topics
+        // Phase 2: Use daily_news_pool
+        // Portfolio-news and competitor-intel are ALWAYS included regardless of user topic prefs
+        // (these are the core value prop of the platform)
+        const alwaysIncludeTopics = ["portfolio-news", "competitor-intel"];
         const userPool = (fullPool as DailyNewsPoolItem[]).filter((item) =>
-          userTopics.includes(item.topic)
+          alwaysIncludeTopics.includes(item.topic) || userTopics.includes(item.topic)
         );
         topicSections = poolToTopicSections(
           userPool,

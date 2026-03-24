@@ -136,6 +136,43 @@ interface BraveResult {
   age?: string;
 }
 
+// Filter out junk results — download pages, how-to-buy crypto, generic resource pages, etc.
+const JUNK_URL_PATTERNS = [
+  /how-to-buy/i,
+  /\/downloads?\//i,
+  /\/download\b/i,
+  /bitget\.com/i,
+  /coinmarketcap\.com\/currencies/i,
+  /\/resource-center/i,
+  /\/resources\/?$/i,
+  /tracxn\.com\/d\/companies/i,
+  /crunchbase\.com\/organization/i,
+  /\/pricing\/?$/i,
+  /\/careers?\/?$/i,
+  /\/about\/?$/i,
+  /\/contact\/?$/i,
+  /wikipedia\.org/i,
+  /glassdoor\./i,
+  /indeed\.com/i,
+  /linkedin\.com\/company/i,
+  /\.techspot\.com\/downloads/i,
+];
+
+const JUNK_TITLE_PATTERNS = [
+  /how to buy/i,
+  /download free/i,
+  /company profile.*funding.*competitors/i,
+  /alternative \d{4}/i,
+  /best .* alternative/i,
+  /review \d{4}/i,
+  /^.{0,5}$/,  // too short
+];
+
+function isJunkResult(url: string, title: string): boolean {
+  return JUNK_URL_PATTERNS.some((p) => p.test(url)) ||
+    JUNK_TITLE_PATTERNS.some((p) => p.test(title));
+}
+
 async function searchBrave(
   query: string,
   count: number = 5,
@@ -385,6 +422,7 @@ export async function fetchRealNews(
         const summary = decodeHtmlEntities(r.description);
         const fullText = `${headline} ${summary}`.toLowerCase();
 
+        if (isJunkResult(r.url, headline)) continue;
         if (isDuplicate(r.url, headline)) continue;
         if (isGlobalDuplicate(r.url, headline)) continue;
 
@@ -483,6 +521,7 @@ export async function fetchRealNews(
         const headline = decodeHtmlEntities(r.title);
         const summary = decodeHtmlEntities(r.description);
 
+        if (isJunkResult(r.url, headline)) continue;
         if (isDuplicate(r.url, headline)) continue;
         if (isGlobalDuplicate(r.url, headline)) continue;
 
