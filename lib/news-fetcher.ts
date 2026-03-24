@@ -137,52 +137,63 @@ interface BraveResult {
 }
 
 // Filter out junk results — download pages, how-to-buy crypto, generic resource pages, etc.
-const JUNK_URL_PATTERNS = [
-  /how-to-buy/i,
-  /\/downloads?\//i,
-  /\/download\b/i,
-  /bitget\.com/i,
-  /coinmarketcap\.com\/currencies/i,
-  /\/resource-center/i,
-  /\/resources\/?$/i,
-  /tracxn\.com\/d\/companies/i,
-  /crunchbase\.com\/organization/i,
-  /\/pricing\/?$/i,
-  /\/careers?\/?$/i,
-  /\/about\/?$/i,
-  /\/contact\/?$/i,
-  /wikipedia\.org/i,
-  /glassdoor\./i,
-  /indeed\.com/i,
-  /linkedin\.com\/company/i,
-  /\.techspot\.com\/downloads/i,
-  /zoominfo\.com/i,
-  /youtube\.com\/watch/i,
-  /\/faq\b/i,
-  /casino/i,
-  /nightrush/i,
-  /gambling/i,
-  /betting\.com/i,
-  /g2\.com\/products/i,
-  /capterra\.com/i,
-  /trustpilot\.com/i,
-  /softwareadvice\.com/i,
+// ── Quality filtering ──
+// ONLY allow results from actual news/journalism sources
+const TRUSTED_NEWS_DOMAINS = [
+  "techcrunch.com", "reuters.com", "bloomberg.com", "ft.com",
+  "wsj.com", "nytimes.com", "theguardian.com", "bbc.com", "bbc.co.uk",
+  "cnbc.com", "forbes.com", "businessinsider.com", "insider.com",
+  "venturebeat.com", "theinformation.com", "semafor.com",
+  "axios.com", "theverge.com", "wired.com", "arstechnica.com",
+  "protocol.com", "platformer.news", "newcomer.co",
+  "news.ycombinator.com", "techmeme.com",
+  "pitchbook.com", "crunchbase.com/discover",
+  "finextra.com", "pymnts.com", "fintechfutures.com",
+  "sifted.eu", "eu-startups.com", "tech.eu",
+  "latamlist.com", "contxto.com",
+  "techasia.com", "techinasia.com", "dealstreetasia.com",
+  "marketbeat.com", "seekingalpha.com", "fool.com",
+  "ad-hoc-news.de", "handelsblatt.com",
+  "infoq.com", "thenewstack.io", "sdxcentral.com",
+  "healthcareitnews.com", "mobihealthnews.com",
+  "producthunt.com", "betakit.com", "geekwire.com",
+  "alleywatch.com", "uktech.news", "siliconrepublic.com",
+  "zdnet.com", "cnet.com", "engadget.com",
+  "prnewswire.com", "businesswire.com", "globenewswire.com",
+  "apnews.com", "afp.com",
 ];
 
+function isTrustedSource(url: string): boolean {
+  try {
+    const hostname = new URL(url).hostname.replace(/^www\./, "");
+    return TRUSTED_NEWS_DOMAINS.some((domain) =>
+      hostname === domain || hostname.endsWith("." + domain)
+    );
+  } catch {
+    return false;
+  }
+}
+
+// Also block obvious junk even from trusted domains
 const JUNK_TITLE_PATTERNS = [
   /how to buy/i,
   /download free/i,
   /company profile.*funding.*competitors/i,
   /alternative \d{4}/i,
   /best .* alternative/i,
+  /best \d+ .* (for|in) \d{4}/i,
   /review \d{4}/i,
-  /^.{0,5}$/,  // too short
+  /^.{0,5}$/,
   /complete.*comparison/i,
-  /top \d+.*(casino|software|tools|platforms) (for|in) \d{4}/i,
+  /top \d+.*(casino|software|tools|platforms)/i,
   /pricing.*alternatives.*comparisons/i,
   /overview.*news.*similar companies/i,
-  /vs\.?\s/i,  // "X vs Y" comparison articles
 ];
+
+function isJunkResult(url: string, title: string): boolean {
+  if (!isTrustedSource(url)) return true;  // not from a real news source = junk
+  return JUNK_TITLE_PATTERNS.some((p) => p.test(title));
+}
 
 function isJunkResult(url: string, title: string): boolean {
   return JUNK_URL_PATTERNS.some((p) => p.test(url)) ||
@@ -424,10 +435,10 @@ export async function fetchRealNews(
     
     const batchResults = await Promise.all(
       batchOfChunks.map(async (chunk) => {
-        // Combine company names into one OR query
+        // Combine company names into one OR query — target actual news
         const queryParts = chunk.map((c) => `"${c.name}"`);
-        const query = queryParts.join(" OR ");
-        const results = await searchBrave(query, 6, "pw");
+        const query = queryParts.join(" OR ") + " announcement OR launch OR raises OR acquisition OR partnership OR revenue";
+        const results = await searchBrave(query, 8, "pw");
         return { chunk, results };
       })
     );

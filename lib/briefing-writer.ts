@@ -68,17 +68,18 @@ Each story is:
 TONE: ${tonePrompt}
 
 RULES:
-- Every story gets its own bold headline followed by a meaty paragraph — NOT a one-liner summary
+- QUALITY OVER QUANTITY. Only include stories where something ACTUALLY HAPPENED. A product launched, a deal closed, funding was raised, an exec was hired, a partnership was announced, a metric was hit. If the source material is just a company description, marketing page, comparison article, or generic "X is a leader in Y" fluff — DROP IT. Do not include it. Do not rewrite garbage into something that sounds like news. Better to have 2 great stories than 5 mediocre ones.
+- Every included story gets its own bold headline followed by a meaty paragraph — NOT a one-liner summary
 - Each paragraph should be 3-5 sentences minimum. Dig into the WHY and SO WHAT
 - For competitor stories, ALWAYS explain what this means for the affected portfolio company
 - Add context the reader needs — who are the players, what's the backstory, why should they care
 - Use the three section structure: Portfolio News → Competitor Moves → Market Context
 - NEVER write thin one-sentence summaries. That's the opposite of what we want
 - NEVER use: "In a move that...", "This comes as...", "It's worth noting...", "Interestingly...", "Let's dive in"
+- NEVER dress up non-news as news. If a company "continues to innovate" or "is gaining traction" with no specific event, it's NOT a story.
 - Don't add stories that aren't in the source material
 - Improve clickbait headlines to be informative and punchy
 - If a section has no stories, omit it entirely
-- After each story paragraph, add the source link on its own line in the format: 🔗 Source Name (keep the URL in the stories array, it will be linked automatically)
 
 OUTPUT FORMAT (valid JSON only):
 {
