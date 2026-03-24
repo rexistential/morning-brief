@@ -26,6 +26,10 @@ const RSS_FEEDS: Array<{ name: string; url: string; topics: string[] }> = [
   { name: "GitHub Blog", url: "https://github.blog/engineering/feed/", topics: ["dev-tools", "open-source"] },
   { name: "Netflix Tech Blog", url: "https://netflixtechblog.medium.com/feed", topics: ["dev-tools"] },
   { name: "OpenAI Blog", url: "https://openai.com/blog/rss.xml", topics: ["foundation-models", "ai-ml"] },
+  { name: "Anthropic Blog", url: "https://www.anthropic.com/rss.xml", topics: ["foundation-models", "ai-ml"] },
+  { name: "Microsoft AI Blog", url: "https://blogs.microsoft.com/ai/feed/", topics: ["foundation-models", "ai-ml", "dev-tools"] },
+  { name: "Google AI Blog", url: "https://blog.google/technology/ai/rss/", topics: ["foundation-models", "ai-ml"] },
+  { name: "Perplexity Blog", url: "https://www.perplexity.ai/hub/blog/rss.xml", topics: ["foundation-models", "ai-ml"] },
   { name: "Stripe Blog", url: "https://stripe.com/blog/feed.rss", topics: ["dev-tools", "ai-finance"] },
   { name: "The New Stack", url: "https://thenewstack.io/feed/", topics: ["dev-tools", "open-source"] },
   { name: "Changelog", url: "https://changelog.com/feed", topics: ["dev-tools", "open-source"] },
@@ -87,12 +91,21 @@ async function fetchRssFeeds(topicId: string): Promise<RssStory[]> {
 // Each topic gets web queries + Twitter/X-specific queries
 const TOPIC_SEARCH_QUERIES: Record<string, { web: string[]; twitter: string[] }> = {
   "ai-ml": {
-    web: ["artificial intelligence news today", "machine learning breakthrough"],
-    twitter: ["AI breakthrough site:x.com OR site:twitter.com"],
+    web: [
+      "artificial intelligence news today",
+      "machine learning breakthrough",
+      "AI product launch new feature release today",
+    ],
+    twitter: ["AI breakthrough OR product launch site:x.com OR site:twitter.com"],
   },
   "foundation-models": {
-    web: ["OpenAI Anthropic Google AI model news", "LLM foundation model update"],
-    twitter: ["GPT Claude Gemini new model site:x.com OR site:twitter.com"],
+    web: [
+      "OpenAI Anthropic Google AI model news",
+      "LLM foundation model update",
+      "Claude OpenAI GPT Microsoft Copilot Perplexity new product launch",
+      "Anthropic Claude new feature release OR product launch",
+    ],
+    twitter: ["GPT Claude Gemini new model OR product launch site:x.com OR site:twitter.com"],
   },
   "ai-finance": {
     web: [
