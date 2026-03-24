@@ -78,6 +78,7 @@ RULES:
 - Don't add stories that aren't in the source material
 - Improve clickbait headlines to be informative and punchy
 - If a section has no stories, omit it entirely
+- After each story paragraph, add the source link on its own line in the format: 🔗 Source Name (keep the URL in the stories array, it will be linked automatically)
 
 OUTPUT FORMAT (valid JSON only):
 {
@@ -137,16 +138,34 @@ ${rawMaterial}`;
       })),
     }));
 
-    const editorialContent = `${parsed.opener || ""}\n\n${rewrittenSections.map(s =>
-      `## ${s.label}\n\n${s.body || ""}`
-    ).join("\n\n---\n\n")}`;
+    // Build editorial content with source links appended to each story
+    const editorialContent = `${parsed.opener || ""}\n\n${rewrittenSections.map(s => {
+      let body = s.body || "";
+      // Append source links after each story in the body
+      // Match each story headline in the body and append link after its paragraph
+      for (const story of s.stories) {
+        const safeHeadline = story.headline.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+        // Find the story's paragraph block and append source link
+        const headlinePattern = new RegExp(
+          `(\\*\\*[^*]*${safeHeadline.slice(0, 30)}[^*]*\\*\\*[\\s\\S]*?)(?=\\n\\n\\*\\*|$)`,
+          "i"
+        );
+        const match = body.match(headlinePattern);
+        if (match) {
+          const storyBlock = match[1].trimEnd();
+          const withLink = `${storyBlock}\n🔗 ${story.source_name}: ${story.source_url}`;
+          body = body.replace(storyBlock, withLink);
+        }
+      }
+      return `## ${s.label}\n\n${body}`;
+    }).join("\n\n---\n\n")}`;
 
     return { rewrittenSections, editorialContent };
   } catch (error) {
     console.error("OpenAI rewrite failed:", error);
     const fallbackContent = topicSections.map(s =>
       `## ${s.label}\n\n${s.stories.map(st =>
-        `**${st.headline}**\n${st.summary}`
+        `**${st.headline}**\n${st.summary}\n🔗 ${st.source_name}: ${st.source_url}`
       ).join("\n\n")}`
     ).join("\n\n---\n\n");
 
