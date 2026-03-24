@@ -34,6 +34,9 @@ export async function POST(request: NextRequest) {
         source_url: story.source_url,
         source_name: story.source_name,
         emoji: story.emoji || "",
+        portfolio_company_id: story.portfolio_company_id || null,
+        is_competitor_news: story.is_competitor_news || false,
+        affected_portfolio_company: story.affected_portfolio_company || null,
       }))
     );
 

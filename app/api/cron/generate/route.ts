@@ -84,10 +84,27 @@ function poolToTopicSections(
   }
 
   // Convert to TopicSection[], respecting story count limit
+  // Prioritize portfolio news → competitor intel → market context
+  const sectionOrder = [
+    "portfolio-news",
+    "competitor-intel",
+    "market-moves",
+    "fundraising",
+    "product-launches",
+    "ai-ml",
+    "regulation",
+  ];
   const sections: TopicSection[] = [];
   let totalStories = 0;
 
-  for (const [topicId, items] of grouped) {
+  const orderedTopics = [
+    ...sectionOrder.filter((t) => grouped.has(t)),
+    ...[...grouped.keys()].filter((t) => !sectionOrder.includes(t)),
+  ];
+
+  for (const topicId of orderedTopics) {
+    const items = grouped.get(topicId);
+    if (!items) continue;
     if (totalStories >= storyCount) break;
     const topicInfo = getTopicById(topicId);
     if (!topicInfo) continue;
@@ -100,6 +117,9 @@ function poolToTopicSections(
       source_url: item.source_url,
       source_name: item.source_name,
       topic: item.topic,
+      portfolio_company_id: item.portfolio_company_id,
+      is_competitor_news: item.is_competitor_news,
+      affected_portfolio_company: item.affected_portfolio_company,
     }));
 
     if (stories.length > 0) {

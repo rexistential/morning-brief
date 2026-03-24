@@ -21,6 +21,9 @@ export interface Story {
   source_url: string;
   source_name: string;
   topic: string;
+  portfolio_company_id?: string;
+  is_competitor_news?: boolean;
+  affected_portfolio_company?: string;
 }
 
 export interface TopicSection {
@@ -54,6 +57,9 @@ export interface DailyNewsPoolItem {
   source_name: string;
   emoji: string;
   fetched_at: string;
+  portfolio_company_id?: string;
+  is_competitor_news?: boolean;
+  affected_portfolio_company?: string;
 }
 
 export interface StoryClick {

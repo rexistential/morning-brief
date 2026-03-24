@@ -1,16 +1,26 @@
 export const TOPICS = [
-  { id: "ai-ml", label: "AI & Machine Learning", emoji: "🤖" },
-  { id: "foundation-models", label: "Foundation Models", emoji: "🧠" },
-  { id: "ai-finance", label: "AI in Finance & Excel", emoji: "💹" },
-  { id: "vc-startups", label: "VC & Startups", emoji: "🚀" },
-  { id: "markets-finance", label: "Markets & Finance", emoji: "📈" },
-  { id: "dev-tools", label: "Developer Tools & Infrastructure", emoji: "🛠️" },
-  { id: "policy-regulation", label: "Policy & Regulation", emoji: "⚖️" },
-  { id: "hardware-chips", label: "Hardware & Chips", emoji: "💾" },
-  { id: "open-source", label: "Open Source", emoji: "📖" },
-  { id: "robotics", label: "Robotics & Physical AI", emoji: "🦾" },
-  { id: "crypto-web3", label: "Crypto & Web3", emoji: "🪙" },
+  { id: "portfolio-news", label: "Portfolio Company News", emoji: "📊" },
+  { id: "competitor-intel", label: "Competitor Intelligence", emoji: "⚔️" },
+  { id: "market-moves", label: "Market & Sector Moves", emoji: "📈" },
+  { id: "fundraising", label: "Fundraising & Exits", emoji: "💰" },
+  { id: "product-launches", label: "Product Launches", emoji: "🚀" },
+  { id: "ai-ml", label: "AI & Infrastructure", emoji: "🤖" },
+  { id: "regulation", label: "Policy & Regulation", emoji: "⚖️" },
 ] as const;
+
+// Legacy topic IDs that map to new ones (backward compat)
+export const LEGACY_TOPIC_MAP: Record<string, string> = {
+  "foundation-models": "ai-ml",
+  "ai-finance": "market-moves",
+  "vc-startups": "fundraising",
+  "markets-finance": "market-moves",
+  "dev-tools": "product-launches",
+  "policy-regulation": "regulation",
+  "hardware-chips": "ai-ml",
+  "open-source": "ai-ml",
+  "robotics": "ai-ml",
+  "crypto-web3": "market-moves",
+};
 
 export const BRIEFING_LENGTHS = [
   { id: "quick", label: "Quick", description: "3-5 stories" },
@@ -51,7 +61,12 @@ export const TIMEZONES = [
 export const ADMIN_EMAILS = (process.env.ADMIN_EMAILS || "rob@headline.com,robtweddle9@gmail.com").split(",").map(e => e.trim());
 
 export function getTopicById(id: string) {
-  return TOPICS.find(t => t.id === id);
+  // Check new topics first, then try legacy mapping
+  const direct = TOPICS.find(t => t.id === id);
+  if (direct) return direct;
+  const mapped = LEGACY_TOPIC_MAP[id];
+  if (mapped) return TOPICS.find(t => t.id === mapped);
+  return undefined;
 }
 
 export function getStoryCountForLength(length: string): number {
@@ -61,4 +76,14 @@ export function getStoryCountForLength(length: string): number {
     case "deep": return 11;
     default: return 7;
   }
+}
+
+/** Resolve a user's topic list, mapping any legacy IDs to new ones */
+export function resolveUserTopics(topics: string[]): string[] {
+  const resolved = new Set<string>();
+  for (const t of topics) {
+    const mapped = LEGACY_TOPIC_MAP[t];
+    resolved.add(mapped || t);
+  }
+  return [...resolved];
 }

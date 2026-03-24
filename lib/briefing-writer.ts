@@ -18,28 +18,50 @@ export async function rewriteBriefing(
   const tonePrompt = TONE_PROMPTS[tone] || TONE_PROMPTS.punchy;
 
   const rawMaterial = topicSections.map(section => {
-    const stories = section.stories.map(s =>
-      `- Headline: ${s.headline}\n  Summary: ${s.summary}\n  Source: ${s.source_name} (${s.source_url})`
-    ).join("\n");
+    const stories = section.stories.map(s => {
+      let line = `- Headline: ${s.headline}\n  Summary: ${s.summary}\n  Source: ${s.source_name} (${s.source_url})`;
+      if (s.portfolio_company_id) line += `\n  Portfolio Company: ${s.portfolio_company_id}`;
+      if (s.is_competitor_news && s.affected_portfolio_company) line += `\n  Competitor news → affects: ${s.affected_portfolio_company}`;
+      return line;
+    }).join("\n");
     return `## ${section.label}\n${stories}`;
   }).join("\n\n");
 
-  const prompt = `You're writing a daily news briefing. Here is EXACTLY how each story should read — this is the gold standard:
+  const prompt = `You're writing a daily Portfolio Intelligence briefing for a VC investment team. This briefing monitors Headline VC's portfolio companies AND their competitors.
+
+Here is EXACTLY how each story should read — this is the gold standard:
 
 ---
-**Pentagon officially designates Anthropic a "supply chain risk"**
-Defense Secretary Pete Hegseth followed through on threats, formally blacklisting Anthropic from DoD contracts. Defense contractors are already pivoting away from Claude "out of an abundance of caution." Anthropic CEO Dario Amodei fired back in a blistering internal memo, saying the dispute stems from the company refusing to "donate to Trump" or offer "dictator-style praise." Politico reports lobbyists and ex-officials say Trump is "wrecking his own AI agenda" with the spat.
+## 📊 PORTFOLIO COMPANY NEWS
 
-**OpenAI drops GPT-5.3 Instant**
-The new default ChatGPT model focuses on tone and conversational flow — fewer unnecessary refusals, less preachy preambles, and 27% fewer hallucinations when using web search. OpenAI says it addresses the "cringe" factor of 5.2 Instant, which had a habit of saying things like "Stop. Take a breath." Small model, big vibes upgrade.
+**Mistral AI launches Le Chat Enterprise**
+Mistral rolled out its enterprise chat product targeting European corporates worried about data sovereignty. The pitch: GPT-4-class performance with data that never leaves EU borders. Pricing undercuts OpenAI by ~30% on comparable tiers. Early design partners include BNP Paribas and Siemens — big logos that validate the enterprise pivot. If the data residency angle holds up under scrutiny, this could be Mistral's real moat against US hyperscalers.
 
-**Defense contractors scrambling = opportunity for alternatives**
-With Anthropic effectively locked out of defense contracts, there's a vacuum forming. Defense-tech startups and alternative AI providers (Palantir's AIP, Scale AI, Mistral for non-US contracts) could benefit. If you're tracking deal flow in defense-adjacent AI, this is a catalyst moment — expect pitches from startups positioning as "Pentagon-safe" AI providers.
+**Bitwarden hits 100M users**
+The open-source password manager crossed 100M registered users, up from 50M just 18 months ago. Enterprise revenue now makes up 40% of total — the B2B pivot is working. They've been quietly landing Fortune 500 deals by emphasizing self-hosted deployment options that 1Password can't match.
+
+## ⚔️ COMPETITOR MOVES
+
+**OpenAI drops GPT-5.3 pricing by 40%** → affects: Mistral AI
+OpenAI slashed API pricing across the board. This puts direct pressure on Mistral's enterprise pricing, which was already positioned as the "cheaper European alternative." The margin advantage just shrank significantly.
+
+**1Password acquires Kolide** → affects: Bitwarden
+1Password picked up device trust startup Kolide for an undisclosed sum. This bolts on zero-trust device posture checks — something Bitwarden's enterprise play doesn't have yet. Expect 1Password to bundle this into their business tier.
+
+## 📈 MARKET CONTEXT
+
+**EU AI Act enforcement begins April 1**
+First wave of EU AI Act penalties kick in next week. High-risk AI systems need conformity assessments by August. European AI companies (Mistral, Aleph Alpha) have a compliance head start, but the overhead is real.
 ---
 
-STUDY THAT FORMAT. Each story is:
-1. A bold headline
-2. A SUBSTANTIAL paragraph (3-5 sentences) explaining what happened, why it matters, and what the implications are
+STUDY THAT FORMAT. The briefing has THREE sections:
+1. **📊 PORTFOLIO COMPANY NEWS** — Direct news about Headline's portfolio companies
+2. **⚔️ COMPETITOR MOVES** — News about competitors, with "→ affects: [Company]" in the headline showing which portfolio company is impacted, plus a "So What?" angle
+3. **📈 MARKET CONTEXT** — Broader market, regulatory, and sector trends relevant to the portfolio
+
+Each story is:
+1. A bold headline (competitor stories include "→ affects: [Portfolio Company]")
+2. A SUBSTANTIAL paragraph (3-5 sentences) explaining what happened, why it matters, and implications for the portfolio
 3. Written with personality and opinion — not a sterile summary
 4. Packed with specific details, names, numbers, quotes when available
 
@@ -48,19 +70,21 @@ TONE: ${tonePrompt}
 RULES:
 - Every story gets its own bold headline followed by a meaty paragraph — NOT a one-liner summary
 - Each paragraph should be 3-5 sentences minimum. Dig into the WHY and SO WHAT
+- For competitor stories, ALWAYS explain what this means for the affected portfolio company
 - Add context the reader needs — who are the players, what's the backstory, why should they care
-- Group stories under section headers
+- Use the three section structure: Portfolio News → Competitor Moves → Market Context
 - NEVER write thin one-sentence summaries. That's the opposite of what we want
 - NEVER use: "In a move that...", "This comes as...", "It's worth noting...", "Interestingly...", "Let's dive in"
 - Don't add stories that aren't in the source material
 - Improve clickbait headlines to be informative and punchy
+- If a section has no stories, omit it entirely
 
 OUTPUT FORMAT (valid JSON only):
 {
   "sections": [
     {
-      "topic": "<topic_id>",
-      "label": "<short section name e.g. GENERAL AI NEWS, VC & FINANCE CORNER, AI TOOLS>",
+      "topic": "<topic_id: portfolio-news | competitor-intel | market-moves | fundraising | product-launches | ai-ml | regulation>",
+      "label": "<section name: PORTFOLIO COMPANY NEWS | COMPETITOR MOVES | MARKET CONTEXT | FUNDRAISING & EXITS | PRODUCT LAUNCHES | AI & INFRASTRUCTURE | POLICY & REGULATION>",
       "body": "<ALL stories for this section, written EXACTLY in the format above. Each story: **Bold Headline**\\n\\nSubstantial paragraph of 3-5 sentences.\\n\\n**Next Headline**\\n\\nNext paragraph. Use \\n\\n between stories. Do NOT include source links in the body text — just write the editorial content.>",
       "stories": [
         {
@@ -72,10 +96,10 @@ OUTPUT FORMAT (valid JSON only):
       ]
     }
   ],
-  "opener": "<casual one-liner — what's the vibe today>"
+  "opener": "<casual one-liner — what's the portfolio vibe today>"
 }
 
-The "body" field IS the briefing. Write it like a journalist, not a search engine. The "stories" array is just metadata for link tracking.
+The "body" field IS the briefing. Write it like a journalist covering a beat, not a search engine. The "stories" array is just metadata for link tracking.
 
 RAW MATERIAL:
 ${rawMaterial}`;

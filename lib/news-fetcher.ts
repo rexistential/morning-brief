@@ -1,5 +1,11 @@
 import { Story, TopicSection } from "./types";
 import { getTopicById, getStoryCountForLength } from "./constants";
+import {
+  PORTFOLIO_COMPANIES,
+  matchPortfolioCompanies,
+  matchCompetitors,
+} from "./portfolio";
+import type { PortfolioCompany } from "./portfolio";
 import Parser from "rss-parser";
 
 const rssParser = new Parser({ timeout: 10000 });
@@ -9,32 +15,29 @@ function decodeHtmlEntities(text: string): string {
     .replace(/&#x27;/g, "'")
     .replace(/&#39;/g, "'")
     .replace(/&quot;/g, '"')
-    .replace(/&amp;/g, '&')
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>')
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
     .replace(/&#(\d+);/g, (_, num) => String.fromCharCode(parseInt(num, 10)))
-    .replace(/&#x([0-9a-fA-F]+);/g, (_, hex) => String.fromCharCode(parseInt(hex, 16)));
+    .replace(/&#x([0-9a-fA-F]+);/g, (_, hex) =>
+      String.fromCharCode(parseInt(hex, 16))
+    );
 }
 
-// RSS feeds mapped to topics. Each feed can be relevant to multiple topics.
+// RSS feeds for general market/tech coverage
 const RSS_FEEDS: Array<{ name: string; url: string; topics: string[] }> = [
-  { name: "Pragmatic Engineer", url: "https://feeds.feedburner.com/ThePragmaticEngineer", topics: ["dev-tools"] },
-  { name: "Martin Fowler", url: "https://martinfowler.com/feed.atom", topics: ["dev-tools"] },
-  { name: "InfoQ", url: "https://feed.infoq.com/", topics: ["dev-tools", "ai-ml"] },
-  { name: "Hacker News", url: "https://hnrss.org/frontpage?count=15", topics: ["ai-ml", "dev-tools", "open-source"] },
-  { name: "arXiv CS.AI", url: "https://rss.arxiv.org/rss/cs.AI", topics: ["ai-ml", "foundation-models"] },
-  { name: "GitHub Blog", url: "https://github.blog/engineering/feed/", topics: ["dev-tools", "open-source"] },
-  { name: "Netflix Tech Blog", url: "https://netflixtechblog.medium.com/feed", topics: ["dev-tools"] },
-  { name: "OpenAI Blog", url: "https://openai.com/blog/rss.xml", topics: ["foundation-models", "ai-ml"] },
-  { name: "Anthropic Blog", url: "https://www.anthropic.com/rss.xml", topics: ["foundation-models", "ai-ml"] },
-  { name: "Microsoft AI Blog", url: "https://blogs.microsoft.com/ai/feed/", topics: ["foundation-models", "ai-ml", "dev-tools"] },
-  { name: "Google AI Blog", url: "https://blog.google/technology/ai/rss/", topics: ["foundation-models", "ai-ml"] },
-  { name: "Perplexity Blog", url: "https://www.perplexity.ai/hub/blog/rss.xml", topics: ["foundation-models", "ai-ml"] },
-  { name: "Stripe Blog", url: "https://stripe.com/blog/feed.rss", topics: ["dev-tools", "ai-finance"] },
-  { name: "The New Stack", url: "https://thenewstack.io/feed/", topics: ["dev-tools", "open-source"] },
-  { name: "Changelog", url: "https://changelog.com/feed", topics: ["dev-tools", "open-source"] },
-  { name: "CSS-Tricks", url: "https://css-tricks.com/feed/", topics: ["dev-tools"] },
-  { name: "Hacker Noon", url: "https://hackernoon.com/feed", topics: ["ai-ml", "dev-tools", "vc-startups"] },
+  { name: "Hacker News", url: "https://hnrss.org/frontpage?count=15", topics: ["ai-ml", "product-launches", "market-moves"] },
+  { name: "InfoQ", url: "https://feed.infoq.com/", topics: ["ai-ml", "product-launches"] },
+  { name: "OpenAI Blog", url: "https://openai.com/blog/rss.xml", topics: ["ai-ml", "competitor-intel"] },
+  { name: "Anthropic Blog", url: "https://www.anthropic.com/rss.xml", topics: ["ai-ml", "competitor-intel"] },
+  { name: "Microsoft AI Blog", url: "https://blogs.microsoft.com/ai/feed/", topics: ["ai-ml", "competitor-intel"] },
+  { name: "Google AI Blog", url: "https://blog.google/technology/ai/rss/", topics: ["ai-ml", "competitor-intel"] },
+  { name: "Perplexity Blog", url: "https://www.perplexity.ai/hub/blog/rss.xml", topics: ["ai-ml"] },
+  { name: "TechCrunch", url: "https://techcrunch.com/feed/", topics: ["fundraising", "product-launches", "market-moves"] },
+  { name: "The New Stack", url: "https://thenewstack.io/feed/", topics: ["ai-ml", "product-launches"] },
+  { name: "GitHub Blog", url: "https://github.blog/engineering/feed/", topics: ["ai-ml", "product-launches"] },
+  { name: "Stripe Blog", url: "https://stripe.com/blog/feed.rss", topics: ["market-moves"] },
+  { name: "Hacker Noon", url: "https://hackernoon.com/feed", topics: ["ai-ml", "fundraising"] },
 ];
 
 interface RssStory {
@@ -46,29 +49,28 @@ interface RssStory {
 }
 
 async function fetchRssFeeds(topicId: string): Promise<RssStory[]> {
-  const relevantFeeds = RSS_FEEDS.filter(f => f.topics.includes(topicId));
+  const relevantFeeds = RSS_FEEDS.filter((f) => f.topics.includes(topicId));
   const stories: RssStory[] = [];
-  const oneDayAgo = new Date(Date.now() - 48 * 60 * 60 * 1000); // 48h window for RSS
+  const twoDaysAgo = new Date(Date.now() - 48 * 60 * 60 * 1000);
 
   for (const feed of relevantFeeds) {
     try {
       const parsed = await rssParser.parseURL(feed.url);
       for (const item of (parsed.items || []).slice(0, 5)) {
         const pubDate = item.pubDate ? new Date(item.pubDate) : null;
-        // Only include recent items
-        if (pubDate && pubDate < oneDayAgo) continue;
+        if (pubDate && pubDate < twoDaysAgo) continue;
 
         const summary = (item.contentSnippet || item.content || "")
           .replace(/<[^>]*>/g, "")
           .slice(0, 300)
           .trim();
 
-        // Strip arXiv metadata prefix
         const cleanSummary = summary
-          .replace(/^arXiv:\S+\s+Announce Type:\s*\w+\s*Abstract:\s*/i, '')
+          .replace(/^arXiv:\S+\s+Announce Type:\s*\w+\s*Abstract:\s*/i, "")
           .trim();
 
-        const cleanTitle = item.title?.replace(/^arXiv:\S+\s+/, '') || item.title;
+        const cleanTitle =
+          item.title?.replace(/^arXiv:\S+\s+/, "") || item.title;
 
         if (cleanTitle && item.link) {
           stories.push({
@@ -88,83 +90,43 @@ async function fetchRssFeeds(topicId: string): Promise<RssStory[]> {
   return stories;
 }
 
-// Each topic gets web queries + Twitter/X-specific queries
-const TOPIC_SEARCH_QUERIES: Record<string, { web: string[]; twitter: string[] }> = {
+// Market-level search queries for general coverage
+const MARKET_SEARCH_QUERIES: Record<string, { web: string[]; twitter: string[] }> = {
   "ai-ml": {
     web: [
       "artificial intelligence news today",
-      "machine learning breakthrough",
-      "AI product launch new feature release today",
+      "AI infrastructure startup news",
     ],
     twitter: ["AI breakthrough OR product launch site:x.com OR site:twitter.com"],
   },
-  "foundation-models": {
+  "fundraising": {
     web: [
-      "OpenAI Anthropic Google AI model news",
-      "LLM foundation model update",
-      "Claude OpenAI GPT Microsoft Copilot Perplexity new product launch",
-      "Anthropic Claude new feature release OR product launch",
+      "startup funding round today",
+      "venture capital investment AI fintech",
     ],
-    twitter: ["GPT Claude Gemini new model OR product launch site:x.com OR site:twitter.com"],
+    twitter: ["startup raised funding series site:x.com OR site:twitter.com"],
   },
-  "ai-finance": {
+  "market-moves": {
     web: [
-      "AI financial modeling Excel tools",
-      "AI finance spreadsheet automation product launch",
-      "AI CFO accounting tools fintech",
+      "fintech market news today",
+      "SaaS market moves acquisitions",
     ],
-    twitter: [
-      "AI Excel financial modeling site:x.com OR site:twitter.com",
-      "AI finance tools spreadsheet site:x.com OR site:twitter.com",
-      "fintech AI product launch site:x.com OR site:twitter.com",
+    twitter: ["fintech SaaS acquisition IPO site:x.com OR site:twitter.com"],
+  },
+  "product-launches": {
+    web: [
+      "tech product launch today",
+      "startup product launch new feature",
     ],
+    twitter: ["product launch startup site:x.com OR site:twitter.com"],
   },
-  "vc-startups": {
-    web: ["AI startup funding round", "venture capital AI investment"],
-    twitter: ["AI startup raised funding site:x.com OR site:twitter.com"],
-  },
-  "markets-finance": {
-    web: ["stock market AI technology news", "finance technology news today"],
-    twitter: ["AI stocks market fintech site:x.com OR site:twitter.com"],
-  },
-  "dev-tools": {
-    web: ["developer tools AI coding news", "software development tools update"],
-    twitter: ["AI coding tool developer site:x.com OR site:twitter.com"],
-  },
-  "policy-regulation": {
-    web: ["AI regulation policy government", "AI safety policy news"],
+  "regulation": {
+    web: [
+      "AI regulation policy government",
+      "EU AI Act fintech regulation",
+    ],
     twitter: ["AI regulation policy site:x.com OR site:twitter.com"],
   },
-  "hardware-chips": {
-    web: ["AI chip GPU semiconductor news", "NVIDIA AMD AI hardware"],
-    twitter: ["NVIDIA AMD AI chip site:x.com OR site:twitter.com"],
-  },
-  "open-source": {
-    web: ["open source AI model release", "open source machine learning news"],
-    twitter: ["open source AI model release site:x.com OR site:twitter.com"],
-  },
-  "robotics": {
-    web: ["robotics AI automation news", "humanoid robot news"],
-    twitter: ["robotics AI humanoid site:x.com OR site:twitter.com"],
-  },
-  "crypto-web3": {
-    web: ["cryptocurrency Bitcoin news today", "crypto blockchain AI news"],
-    twitter: ["crypto AI blockchain site:x.com OR site:twitter.com"],
-  },
-};
-
-const TOPIC_EMOJIS: Record<string, string> = {
-  "ai-ml": "🤖",
-  "foundation-models": "🧠",
-  "ai-finance": "💹",
-  "vc-startups": "🚀",
-  "markets-finance": "📈",
-  "dev-tools": "🛠️",
-  "policy-regulation": "⚖️",
-  "hardware-chips": "💾",
-  "open-source": "📖",
-  "robotics": "🦾",
-  "crypto-web3": "🪙",
 };
 
 interface BraveResult {
@@ -174,7 +136,11 @@ interface BraveResult {
   age?: string;
 }
 
-async function searchBrave(query: string, count: number = 5, freshness: string = "pd"): Promise<BraveResult[]> {
+async function searchBrave(
+  query: string,
+  count: number = 5,
+  freshness: string = "pd"
+): Promise<BraveResult[]> {
   const apiKey = process.env.BRAVE_SEARCH_API_KEY;
   if (!apiKey) {
     console.error("BRAVE_SEARCH_API_KEY not set");
@@ -189,13 +155,16 @@ async function searchBrave(query: string, count: number = 5, freshness: string =
       text_decorations: "false",
     });
 
-    const res = await fetch(`https://api.search.brave.com/res/v1/web/search?${params}`, {
-      headers: {
-        "Accept": "application/json",
-        "Accept-Encoding": "gzip",
-        "X-Subscription-Token": apiKey,
-      },
-    });
+    const res = await fetch(
+      `https://api.search.brave.com/res/v1/web/search?${params}`,
+      {
+        headers: {
+          Accept: "application/json",
+          "Accept-Encoding": "gzip",
+          "X-Subscription-Token": apiKey,
+        },
+      }
+    );
 
     if (!res.ok) {
       console.error("Brave search failed:", res.status, await res.text());
@@ -203,12 +172,19 @@ async function searchBrave(query: string, count: number = 5, freshness: string =
     }
 
     const data = await res.json();
-    return (data.web?.results || []).map((r: { title: string; url: string; description: string; age?: string }) => ({
-      title: r.title,
-      url: r.url,
-      description: r.description,
-      age: r.age,
-    }));
+    return (data.web?.results || []).map(
+      (r: {
+        title: string;
+        url: string;
+        description: string;
+        age?: string;
+      }) => ({
+        title: r.title,
+        url: r.url,
+        description: r.description,
+        age: r.age,
+      })
+    );
   } catch (err) {
     console.error("Brave search error:", err);
     return [];
@@ -245,13 +221,16 @@ function extractSourceName(url: string): string {
       "x.com": "X (Twitter)",
       "twitter.com": "X (Twitter)",
     };
-    return nameMap[hostname] || hostname.split(".")[0].charAt(0).toUpperCase() + hostname.split(".")[0].slice(1);
+    return (
+      nameMap[hostname] ||
+      hostname.split(".")[0].charAt(0).toUpperCase() +
+        hostname.split(".")[0].slice(1)
+    );
   } catch {
     return "Source";
   }
 }
 
-// Normalize URL for dedup comparison (strip tracking params, trailing slashes, etc.)
 function normalizeUrl(url: string): string {
   try {
     const u = new URL(url);
@@ -263,7 +242,6 @@ function normalizeUrl(url: string): string {
   }
 }
 
-// Normalize headline for fuzzy dedup (lowercase, strip punctuation)
 function normalizeHeadline(headline: string): string {
   return headline
     .toLowerCase()
@@ -272,77 +250,273 @@ function normalizeHeadline(headline: string): string {
     .trim();
 }
 
-// Check if two headlines are similar enough to be the same story
 function headlinesSimilar(a: string, b: string): boolean {
   const na = normalizeHeadline(a);
   const nb = normalizeHeadline(b);
   if (na === nb) return true;
 
-  // Check if one is a prefix/suffix of the other (source name appended)
   const shorter = na.length <= nb.length ? na : nb;
   const longer = na.length <= nb.length ? nb : na;
   if (shorter.split(" ").length >= 5 && longer.startsWith(shorter)) return true;
 
-  // Check word overlap (>70%)
   const wordsA = new Set(na.split(" "));
   const wordsB = new Set(nb.split(" "));
-  const overlap = [...wordsA].filter(w => wordsB.has(w)).length;
+  const overlap = [...wordsA].filter((w) => wordsB.has(w)).length;
   const minSize = Math.min(wordsA.size, wordsB.size);
   return minSize > 3 && overlap / minSize > 0.7;
 }
 
+// ──────────────────────────────────────────────
+// Portfolio-aware story tagging
+// ──────────────────────────────────────────────
+
+interface TaggedStory extends Story {
+  portfolio_company_id?: string;
+  is_competitor_news?: boolean;
+  affected_portfolio_company?: string;
+}
+
+function tagStory(
+  headline: string,
+  summary: string,
+  baseStory: Omit<Story, "portfolio_company_id" | "is_competitor_news" | "affected_portfolio_company">
+): TaggedStory {
+  const text = `${headline} ${summary}`;
+
+  // Check portfolio company matches first
+  const portfolioMatches = matchPortfolioCompanies(text);
+  if (portfolioMatches.length > 0) {
+    return {
+      ...baseStory,
+      topic: "portfolio-news",
+      portfolio_company_id: portfolioMatches[0].id,
+      is_competitor_news: false,
+    };
+  }
+
+  // Check competitor matches
+  const competitorMatches = matchCompetitors(text);
+  if (competitorMatches.length > 0) {
+    return {
+      ...baseStory,
+      topic: "competitor-intel",
+      is_competitor_news: true,
+      affected_portfolio_company: competitorMatches[0].affectedCompany.name,
+      portfolio_company_id: competitorMatches[0].affectedCompany.id,
+    };
+  }
+
+  // No portfolio/competitor match — keep original topic
+  return { ...baseStory };
+}
+
+// ──────────────────────────────────────────────
+// Main fetch function
+// ──────────────────────────────────────────────
+
 export async function fetchRealNews(
   topics: string[],
   length: string,
-  previousStories: Story[] = [],
+  previousStories: Story[] = []
 ): Promise<{ stories: Story[]; topicSections: TopicSection[] }> {
   const storyCount = getStoryCountForLength(length);
-  const storiesPerTopic = Math.max(2, Math.ceil(storyCount / topics.length));
 
   // Build dedup sets from previous briefings
-  const previousUrls = new Set(previousStories.map(s => normalizeUrl(s.source_url)));
-  const previousHeadlines = previousStories.map(s => s.headline);
+  const previousUrls = new Set(
+    previousStories.map((s) => normalizeUrl(s.source_url))
+  );
+  const previousHeadlines = previousStories.map((s) => s.headline);
 
   const isDuplicate = (url: string, headline: string): boolean => {
     if (previousUrls.has(normalizeUrl(url))) return true;
-    return previousHeadlines.some(prev => headlinesSimilar(prev, headline));
+    return previousHeadlines.some((prev) => headlinesSimilar(prev, headline));
   };
 
-  const topicSections: TopicSection[] = [];
-  const allStories: Story[] = [];
-
-  // Global dedup sets across all topics
   const globalSeenUrls = new Set<string>();
   const globalSeenHeadlines: string[] = [];
+  const allTaggedStories: TaggedStory[] = [];
 
-  for (const topicId of topics) {
+  const isGlobalDuplicate = (url: string, headline: string): boolean => {
+    const normUrl = normalizeUrl(url);
+    if (globalSeenUrls.has(normUrl)) return true;
+    if (globalSeenHeadlines.some((prev) => headlinesSimilar(prev, headline)))
+      return true;
+    return false;
+  };
+
+  const addToGlobalDedup = (story: TaggedStory) => {
+    globalSeenUrls.add(normalizeUrl(story.source_url));
+    globalSeenHeadlines.push(story.headline);
+  };
+
+  // ── Phase 1: Search for each portfolio company ──
+  console.log(
+    `[news-fetcher] Searching ${PORTFOLIO_COMPANIES.length} portfolio companies...`
+  );
+
+  // Batch portfolio company searches (parallel, 5 at a time)
+  const portfolioBatches: PortfolioCompany[][] = [];
+  for (let i = 0; i < PORTFOLIO_COMPANIES.length; i += 5) {
+    portfolioBatches.push(PORTFOLIO_COMPANIES.slice(i, i + 5));
+  }
+
+  const companiesWithNews = new Set<string>();
+
+  for (const batch of portfolioBatches) {
+    const batchResults = await Promise.all(
+      batch.map(async (company) => {
+        const searchTerms = company.searchTerms.slice(0, 2);
+        const query = searchTerms.map((t) => `"${t}"`).join(" OR ") +
+          " news funding launch partnership";
+        const results = await searchBrave(query, 4, "pd");
+        return { company, results };
+      })
+    );
+
+    for (const { company, results } of batchResults) {
+      for (const r of results) {
+        const headline = decodeHtmlEntities(r.title);
+        const summary = decodeHtmlEntities(r.description);
+
+        if (isDuplicate(r.url, headline)) continue;
+        if (isGlobalDuplicate(r.url, headline)) continue;
+
+        const story: TaggedStory = {
+          emoji: "📊",
+          headline,
+          summary,
+          source_url: r.url,
+          source_name: extractSourceName(r.url),
+          topic: "portfolio-news",
+          portfolio_company_id: company.id,
+          is_competitor_news: false,
+        };
+
+        addToGlobalDedup(story);
+        allTaggedStories.push(story);
+        companiesWithNews.add(company.id);
+      }
+    }
+  }
+
+  console.log(
+    `[news-fetcher] Found news for ${companiesWithNews.size} portfolio companies`
+  );
+
+  // ── Phase 2: Search competitors of companies that had news ──
+  const competitorSearches: Array<{
+    competitor: string;
+    affectedCompany: PortfolioCompany;
+  }> = [];
+
+  for (const companyId of companiesWithNews) {
+    const company = PORTFOLIO_COMPANIES.find((c) => c.id === companyId);
+    if (!company) continue;
+    for (const competitor of company.competitors.slice(0, 3)) {
+      competitorSearches.push({ competitor, affectedCompany: company });
+    }
+  }
+
+  // Also search top competitors of all companies (capped)
+  const topCompetitorSearches = PORTFOLIO_COMPANIES.flatMap((c) =>
+    c.competitors.slice(0, 1).map((comp) => ({
+      competitor: comp,
+      affectedCompany: c,
+    }))
+  ).filter(
+    (cs) =>
+      !competitorSearches.some(
+        (existing) =>
+          existing.competitor === cs.competitor &&
+          existing.affectedCompany.id === cs.affectedCompany.id
+      )
+  );
+
+  const allCompetitorSearches = [
+    ...competitorSearches,
+    ...topCompetitorSearches.slice(0, 15),
+  ];
+
+  console.log(
+    `[news-fetcher] Searching ${allCompetitorSearches.length} competitors...`
+  );
+
+  // Batch competitor searches
+  const competitorBatches: typeof allCompetitorSearches[] = [];
+  for (let i = 0; i < allCompetitorSearches.length; i += 5) {
+    competitorBatches.push(allCompetitorSearches.slice(i, i + 5));
+  }
+
+  for (const batch of competitorBatches) {
+    const batchResults = await Promise.all(
+      batch.map(async ({ competitor, affectedCompany }) => {
+        const query = `"${competitor}" news`;
+        const results = await searchBrave(query, 3, "pd");
+        return { competitor, affectedCompany, results };
+      })
+    );
+
+    for (const { competitor, affectedCompany, results } of batchResults) {
+      for (const r of results) {
+        const headline = decodeHtmlEntities(r.title);
+        const summary = decodeHtmlEntities(r.description);
+
+        if (isDuplicate(r.url, headline)) continue;
+        if (isGlobalDuplicate(r.url, headline)) continue;
+
+        const story: TaggedStory = {
+          emoji: "⚔️",
+          headline,
+          summary,
+          source_url: r.url,
+          source_name: extractSourceName(r.url),
+          topic: "competitor-intel",
+          is_competitor_news: true,
+          affected_portfolio_company: affectedCompany.name,
+          portfolio_company_id: affectedCompany.id,
+        };
+
+        addToGlobalDedup(story);
+        allTaggedStories.push(story);
+      }
+    }
+  }
+
+  // ── Phase 3: General market news (RSS + Brave) to fill gaps ──
+  const marketTopics = topics.filter(
+    (t) =>
+      t !== "portfolio-news" &&
+      t !== "competitor-intel" &&
+      ["market-moves", "fundraising", "product-launches", "ai-ml", "regulation"].includes(t)
+  );
+
+  for (const topicId of marketTopics) {
     const topicInfo = getTopicById(topicId);
     if (!topicInfo) continue;
 
-    const queryConfig = TOPIC_SEARCH_QUERIES[topicId] || {
+    const queryConfig = MARKET_SEARCH_QUERIES[topicId] || {
       web: [`${topicInfo.label} news today`],
       twitter: [],
     };
-    const emoji = TOPIC_EMOJIS[topicId] || "📰";
 
-    // Fetch RSS feeds for this topic (in parallel with web search)
     const [rssStories, ...braveResults] = await Promise.all([
       fetchRssFeeds(topicId),
-      ...queryConfig.web.slice(0, 2).map(q => searchBrave(q, storiesPerTopic + 3)),
+      ...queryConfig.web
+        .slice(0, 2)
+        .map((q) => searchBrave(q, 4)),
     ]);
 
     let results: BraveResult[] = braveResults.flat();
 
-    // Fetch Twitter/X results
+    // Twitter queries
     let twitterResults: BraveResult[] = [];
-    for (const query of queryConfig.twitter) {
+    for (const query of queryConfig.twitter || []) {
       const batch = await searchBrave(query, 3, "pw");
       twitterResults.push(...batch);
       if (twitterResults.length >= 2) break;
     }
 
-    // Convert RSS stories to the same shape
-    const rssAsBrave = rssStories.map(r => ({
+    const rssAsBrave = rssStories.map((r) => ({
       title: r.title,
       url: r.url,
       description: r.summary,
@@ -351,16 +525,25 @@ export async function fetchRealNews(
       sourceName: r.sourceName,
     }));
 
-    // Combine: RSS first (higher signal), then web, then twitter
     const combined = [
       ...rssAsBrave,
-      ...results.map(r => ({ ...r, isTwitter: false, isRss: false, sourceName: "" })),
-      ...twitterResults.map(r => ({ ...r, isTwitter: true, isRss: false, sourceName: "" })),
+      ...results.map((r) => ({
+        ...r,
+        isTwitter: false,
+        isRss: false,
+        sourceName: "",
+      })),
+      ...twitterResults.map((r) => ({
+        ...r,
+        isTwitter: true,
+        isRss: false,
+        sourceName: "",
+      })),
     ];
 
-    // Deduplicate by URL and domain
+    // Per-topic dedup
     const seen = new Set<string>();
-    const unique = combined.filter(r => {
+    const unique = combined.filter((r) => {
       try {
         const normalUrl = normalizeUrl(r.url);
         if (seen.has(normalUrl)) return false;
@@ -375,46 +558,80 @@ export async function fetchRealNews(
       }
     });
 
-    // Filter out duplicates from previous days and cross-topic duplicates
-    const fresh = unique.filter(r => {
+    const fresh = unique.filter((r) => {
       if (isDuplicate(r.url, r.title)) return false;
-      const normUrl = normalizeUrl(r.url);
-      if (globalSeenUrls.has(normUrl)) return false;
-      if (globalSeenHeadlines.some(prev => headlinesSimilar(prev, r.title))) return false;
+      if (isGlobalDuplicate(r.url, r.title)) return false;
       return true;
     });
 
-    const topicStories: Story[] = fresh.slice(0, storiesPerTopic).map(r => ({
-      emoji: r.isTwitter ? "🐦" : emoji,
-      headline: decodeHtmlEntities(r.title),
-      summary: decodeHtmlEntities(r.description),
-      source_url: r.url,
-      source_name: r.isRss && r.sourceName ? r.sourceName : extractSourceName(r.url),
-      topic: topicId,
-    }));
+    for (const r of fresh.slice(0, 4)) {
+      const headline = decodeHtmlEntities(r.title);
+      const summary = decodeHtmlEntities(r.description);
 
-    // Add to global dedup sets
-    for (const s of topicStories) {
-      globalSeenUrls.add(normalizeUrl(s.source_url));
-      globalSeenHeadlines.push(s.headline);
-    }
-
-    if (topicStories.length > 0) {
-      topicSections.push({
+      // Re-tag: even market stories might mention portfolio companies
+      const baseStory: Story = {
+        emoji: r.isTwitter ? "🐦" : (topicInfo.emoji || "📰"),
+        headline,
+        summary,
+        source_url: r.url,
+        source_name:
+          r.isRss && r.sourceName ? r.sourceName : extractSourceName(r.url),
         topic: topicId,
-        label: topicInfo.label,
-        stories: topicStories,
-      });
-      allStories.push(...topicStories);
+      };
+
+      const tagged = tagStory(headline, summary, baseStory);
+      addToGlobalDedup(tagged);
+      allTaggedStories.push(tagged);
     }
+  }
+
+  // ── Build TopicSections from tagged stories ──
+  const sectionOrder = [
+    "portfolio-news",
+    "competitor-intel",
+    "market-moves",
+    "fundraising",
+    "product-launches",
+    "ai-ml",
+    "regulation",
+  ];
+
+  const grouped = new Map<string, TaggedStory[]>();
+  for (const story of allTaggedStories) {
+    const existing = grouped.get(story.topic) || [];
+    existing.push(story);
+    grouped.set(story.topic, existing);
+  }
+
+  const topicSections: TopicSection[] = [];
+  const allStories: Story[] = [];
+
+  for (const topicId of sectionOrder) {
+    const items = grouped.get(topicId);
+    if (!items || items.length === 0) continue;
+    const topicInfo = getTopicById(topicId);
+    if (!topicInfo) continue;
+
+    topicSections.push({
+      topic: topicId,
+      label: topicInfo.label,
+      stories: items,
+    });
+    allStories.push(...items);
   }
 
   // Trim to target story count
   const trimmed = allStories.slice(0, storyCount);
-  const trimmedSections = topicSections.map(s => ({
-    ...s,
-    stories: s.stories.filter(st => trimmed.includes(st)),
-  })).filter(s => s.stories.length > 0);
+  const trimmedSections = topicSections
+    .map((s) => ({
+      ...s,
+      stories: s.stories.filter((st) => trimmed.includes(st)),
+    }))
+    .filter((s) => s.stories.length > 0);
+
+  console.log(
+    `[news-fetcher] Total: ${allTaggedStories.length} stories, returning ${trimmed.length}`
+  );
 
   return { stories: trimmed, topicSections: trimmedSections };
 }
