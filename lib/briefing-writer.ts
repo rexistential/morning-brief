@@ -67,10 +67,13 @@ First penalties kick in next week. High-risk AI systems need conformity assessme
 [SOURCE:4]
 ---
 
-STUDY THAT FORMAT. The briefing has THREE sections:
+STUDY THAT FORMAT. The briefing has UP TO SIX sections (include any that have stories, omit empty ones):
 1. **📊 PORTFOLIO COMPANY NEWS** — Direct news about Headline's portfolio companies
-2. **⚔️ COMPETITOR MOVES** — News about competitors, with "→ affects: [Company]" in the headline showing which portfolio company is impacted, plus a "So What?" angle
-3. **📈 MARKET CONTEXT** — Broader market, regulatory, and sector trends relevant to the portfolio
+2. **⚔️ COMPETITOR MOVES** — News about competitors, with "→ affects: [Company]" in the headline showing which portfolio company is impacted
+3. **🤖 AI & INFRASTRUCTURE** — AI product launches, model releases, research breakthroughs, dev tools, open source. The big stuff happening in AI/tech.
+4. **💰 FUNDRAISING & EXITS** — VC rounds, IPOs, acquisitions, startup funding news
+5. **🚀 PRODUCT LAUNCHES** — Notable product launches and feature releases outside of AI
+6. **📈 MARKET CONTEXT** — Broader market, regulatory, and sector trends
 
 Each story is:
 1. A bold headline (competitor stories include "→ affects: [Portfolio Company]")
@@ -93,7 +96,7 @@ RULES:
 - Lead with the news, follow with the implication. That's it. No meandering.
 - For competitor stories, ALWAYS explain what this means for the affected portfolio company
 - Add context the reader needs — who are the players, what's the backstory, why should they care
-- Use the three section structure: Portfolio News → Competitor Moves → Market Context
+- Use the section structure above. Portfolio News and Competitor Moves come first, then AI & Infrastructure, Fundraising, Product Launches, Market Context. Only include sections that have stories.
 - One-sentence summaries are fine if the story is simple. Don't pad for length.
 - NEVER use: "In a move that...", "This comes as...", "It's worth noting...", "Interestingly...", "Let's dive in"
 - NEVER dress up non-news as news. If a company "continues to innovate" or "is gaining traction" with no specific event, it's NOT a story.
@@ -105,8 +108,8 @@ OUTPUT FORMAT (valid JSON only):
 {
   "sections": [
     {
-      "topic": "<topic_id: portfolio-news | competitor-intel | market-moves | fundraising | product-launches | ai-ml | regulation>",
-      "label": "<section name: PORTFOLIO COMPANY NEWS | COMPETITOR MOVES | MARKET CONTEXT | FUNDRAISING & EXITS | PRODUCT LAUNCHES | AI & INFRASTRUCTURE | POLICY & REGULATION>",
+      "topic": "<topic_id: portfolio-news | competitor-intel | ai-ml | fundraising | product-launches | market-moves | regulation>",
+      "label": "<section name: PORTFOLIO COMPANY NEWS | COMPETITOR MOVES | AI & INFRASTRUCTURE | FUNDRAISING & EXITS | PRODUCT LAUNCHES | MARKET CONTEXT | POLICY & REGULATION>",
       "body": "<ALL stories for this section. Each story: **Bold Headline**\\n\\nSubstantial paragraph.\\n[SOURCE:N]\\n\\n**Next Headline**\\n\\nNext paragraph.\\n[SOURCE:M]\\n\\nEvery story MUST end with [SOURCE:N] before the next story.>",
       "stories": [
         {
