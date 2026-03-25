@@ -43,27 +43,27 @@ Here is EXACTLY how each story should read — this is the gold standard:
 ## 📊 PORTFOLIO COMPANY NEWS
 
 **Mistral AI launches Le Chat Enterprise**
-Mistral rolled out its enterprise chat product targeting European corporates worried about data sovereignty. The pitch: GPT-4-class performance with data that never leaves EU borders. Pricing undercuts OpenAI by ~30% on comparable tiers. Early design partners include BNP Paribas and Siemens — big logos that validate the enterprise pivot. If the data residency angle holds up under scrutiny, this could be Mistral's real moat against US hyperscalers.
+Enterprise chat product for European corporates — GPT-4-class performance, data stays in the EU. Pricing undercuts OpenAI by ~30%. BNP Paribas and Siemens are early design partners.
 [SOURCE:0]
 
 **Bitwarden hits 100M users**
-The open-source password manager crossed 100M registered users, up from 50M just 18 months ago. Enterprise revenue now makes up 40% of total — the B2B pivot is working. They've been quietly landing Fortune 500 deals by emphasizing self-hosted deployment options that 1Password can't match.
+Up from 50M just 18 months ago. Enterprise revenue now 40% of total — the B2B pivot is working, with Fortune 500 deals landing on the self-hosted deployment angle.
 [SOURCE:1]
 
 ## ⚔️ COMPETITOR MOVES
 
 **OpenAI drops GPT-5.3 pricing by 40%** → affects: Mistral AI
-OpenAI slashed API pricing across the board. This puts direct pressure on Mistral's enterprise pricing, which was already positioned as the "cheaper European alternative." The margin advantage just shrank significantly.
+Across-the-board API price cut. Mistral's "cheaper European alternative" pitch just lost its margin advantage.
 [SOURCE:2]
 
 **1Password acquires Kolide** → affects: Bitwarden
-1Password picked up device trust startup Kolide for an undisclosed sum. This bolts on zero-trust device posture checks — something Bitwarden's enterprise play doesn't have yet. Expect 1Password to bundle this into their business tier.
+Bolts on zero-trust device posture checks — something Bitwarden doesn't have yet. Expect this bundled into 1Password's business tier.
 [SOURCE:3]
 
 ## 📈 MARKET CONTEXT
 
 **EU AI Act enforcement begins April 1**
-First wave of EU AI Act penalties kick in next week. High-risk AI systems need conformity assessments by August. European AI companies (Mistral, Aleph Alpha) have a compliance head start, but the overhead is real.
+First penalties kick in next week. High-risk AI systems need conformity assessments by August. European AI companies have a compliance head start, but the overhead is real.
 [SOURCE:4]
 ---
 
@@ -74,10 +74,10 @@ STUDY THAT FORMAT. The briefing has THREE sections:
 
 Each story is:
 1. A bold headline (competitor stories include "→ affects: [Portfolio Company]")
-2. A SUBSTANTIAL paragraph (3-5 sentences) explaining what happened, why it matters, and implications for the portfolio
+2. A SHORT, PUNCHY paragraph — 2-3 sentences MAX. Lead with the key fact, add one line of "so what", done. No padding.
 3. A [SOURCE:N] placeholder on its own line after the paragraph, where N is the story index from the raw material
 4. Written with personality and opinion — not a sterile summary
-5. Packed with specific details, names, numbers, quotes when available
+5. Specific details (numbers, names, amounts) — but compressed, not sprawling
 
 CRITICAL — SOURCE PLACEHOLDERS:
 - EVERY story paragraph MUST end with a [SOURCE:N] placeholder on its own line
@@ -89,12 +89,12 @@ TONE: ${tonePrompt}
 
 RULES:
 - QUALITY OVER QUANTITY. Only include stories where something ACTUALLY HAPPENED. A product launched, a deal closed, funding was raised, an exec was hired, a partnership was announced, a metric was hit. If the source material is just a company description, marketing page, comparison article, or generic "X is a leader in Y" fluff — DROP IT. Do not include it. Do not rewrite garbage into something that sounds like news. Better to have 2 great stories than 5 mediocre ones.
-- Every included story gets its own bold headline followed by a meaty paragraph — NOT a one-liner summary
-- Each paragraph should be 3-5 sentences minimum. Dig into the WHY and SO WHAT
+- Every included story gets its own bold headline followed by a tight paragraph — 2-3 sentences, no more
+- Lead with the news, follow with the implication. That's it. No meandering.
 - For competitor stories, ALWAYS explain what this means for the affected portfolio company
 - Add context the reader needs — who are the players, what's the backstory, why should they care
 - Use the three section structure: Portfolio News → Competitor Moves → Market Context
-- NEVER write thin one-sentence summaries. That's the opposite of what we want
+- One-sentence summaries are fine if the story is simple. Don't pad for length.
 - NEVER use: "In a move that...", "This comes as...", "It's worth noting...", "Interestingly...", "Let's dive in"
 - NEVER dress up non-news as news. If a company "continues to innovate" or "is gaining traction" with no specific event, it's NOT a story.
 - Don't add stories that aren't in the source material
