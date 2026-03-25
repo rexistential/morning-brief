@@ -90,8 +90,15 @@ function buildEmailHtml(briefing: Briefing): string {
 <body style="margin:0;padding:0;background-color:#ffffff;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
   <div style="max-width:580px;margin:0 auto;padding:40px 24px;">
     <div style="margin-bottom:24px;">
-      <h1 style="font-size:24px;font-weight:700;color:#111827;margin:0;">Morning Brief</h1>
-      <p style="font-size:13px;color:#9ca3af;margin:4px 0 0;">${date}</p>
+      <table width="100%" cellpadding="0" cellspacing="0" border="0"><tr>
+        <td>
+          <h1 style="font-size:24px;font-weight:700;color:#111827;margin:0;">Morning Brief</h1>
+          <p style="font-size:13px;color:#9ca3af;margin:4px 0 0;">${date}</p>
+        </td>
+        <td style="text-align:right;vertical-align:middle;">
+          <a href="https://morning-brief-gilt.vercel.app/dashboard" style="display:inline-block;padding:8px 16px;font-size:13px;font-weight:600;color:#ffffff;background-color:#111827;border-radius:6px;text-decoration:none;">Read on web ↗</a>
+        </td>
+      </tr></table>
     </div>
     ${openerHtml}
     ${sections}
