@@ -18,14 +18,22 @@ export async function rewriteBriefing(
   const tonePrompt = TONE_PROMPTS[tone] || TONE_PROMPTS.punchy;
 
   const rawMaterial = topicSections.map(section => {
-    const stories = section.stories.map(s => {
-      let line = `- Headline: ${s.headline}\n  Summary: ${s.summary}\n  Source: ${s.source_name} (${s.source_url})`;
+    const stories = section.stories.map((s, i) => {
+      let line = `- [${i}] Headline: ${s.headline}\n  Summary: ${s.summary}\n  Source: ${s.source_name} (${s.source_url})`;
       if (s.portfolio_company_id) line += `\n  Portfolio Company: ${s.portfolio_company_id}`;
       if (s.is_competitor_news && s.affected_portfolio_company) line += `\n  Competitor news → affects: ${s.affected_portfolio_company}`;
       return line;
     }).join("\n");
     return `## ${section.label}\n${stories}`;
   }).join("\n\n");
+
+  // Build a flat lookup of all stories across sections for SOURCE placeholder resolution
+  const allStories: { source_name: string; source_url: string }[] = [];
+  for (const section of topicSections) {
+    for (const story of section.stories) {
+      allStories.push({ source_name: story.source_name, source_url: story.source_url });
+    }
+  }
 
   const prompt = `You're writing a daily Portfolio Intelligence briefing for a VC investment team. This briefing monitors Headline VC's portfolio companies AND their competitors.
 
@@ -36,22 +44,27 @@ Here is EXACTLY how each story should read — this is the gold standard:
 
 **Mistral AI launches Le Chat Enterprise**
 Mistral rolled out its enterprise chat product targeting European corporates worried about data sovereignty. The pitch: GPT-4-class performance with data that never leaves EU borders. Pricing undercuts OpenAI by ~30% on comparable tiers. Early design partners include BNP Paribas and Siemens — big logos that validate the enterprise pivot. If the data residency angle holds up under scrutiny, this could be Mistral's real moat against US hyperscalers.
+[SOURCE:0]
 
 **Bitwarden hits 100M users**
 The open-source password manager crossed 100M registered users, up from 50M just 18 months ago. Enterprise revenue now makes up 40% of total — the B2B pivot is working. They've been quietly landing Fortune 500 deals by emphasizing self-hosted deployment options that 1Password can't match.
+[SOURCE:1]
 
 ## ⚔️ COMPETITOR MOVES
 
 **OpenAI drops GPT-5.3 pricing by 40%** → affects: Mistral AI
 OpenAI slashed API pricing across the board. This puts direct pressure on Mistral's enterprise pricing, which was already positioned as the "cheaper European alternative." The margin advantage just shrank significantly.
+[SOURCE:2]
 
 **1Password acquires Kolide** → affects: Bitwarden
 1Password picked up device trust startup Kolide for an undisclosed sum. This bolts on zero-trust device posture checks — something Bitwarden's enterprise play doesn't have yet. Expect 1Password to bundle this into their business tier.
+[SOURCE:3]
 
 ## 📈 MARKET CONTEXT
 
 **EU AI Act enforcement begins April 1**
 First wave of EU AI Act penalties kick in next week. High-risk AI systems need conformity assessments by August. European AI companies (Mistral, Aleph Alpha) have a compliance head start, but the overhead is real.
+[SOURCE:4]
 ---
 
 STUDY THAT FORMAT. The briefing has THREE sections:
@@ -62,8 +75,15 @@ STUDY THAT FORMAT. The briefing has THREE sections:
 Each story is:
 1. A bold headline (competitor stories include "→ affects: [Portfolio Company]")
 2. A SUBSTANTIAL paragraph (3-5 sentences) explaining what happened, why it matters, and implications for the portfolio
-3. Written with personality and opinion — not a sterile summary
-4. Packed with specific details, names, numbers, quotes when available
+3. A [SOURCE:N] placeholder on its own line after the paragraph, where N is the story index from the raw material
+4. Written with personality and opinion — not a sterile summary
+5. Packed with specific details, names, numbers, quotes when available
+
+CRITICAL — SOURCE PLACEHOLDERS:
+- EVERY story paragraph MUST end with a [SOURCE:N] placeholder on its own line
+- N corresponds to the index number [N] shown next to each story in the raw material
+- A story without a source placeholder is INCOMPLETE. Every single story needs one.
+- Place the placeholder AFTER the paragraph, on its own line, before the next headline
 
 TONE: ${tonePrompt}
 
@@ -87,13 +107,14 @@ OUTPUT FORMAT (valid JSON only):
     {
       "topic": "<topic_id: portfolio-news | competitor-intel | market-moves | fundraising | product-launches | ai-ml | regulation>",
       "label": "<section name: PORTFOLIO COMPANY NEWS | COMPETITOR MOVES | MARKET CONTEXT | FUNDRAISING & EXITS | PRODUCT LAUNCHES | AI & INFRASTRUCTURE | POLICY & REGULATION>",
-      "body": "<ALL stories for this section, written EXACTLY in the format above. Each story: **Bold Headline**\\n\\nSubstantial paragraph of 3-5 sentences.\\n\\n**Next Headline**\\n\\nNext paragraph. Use \\n\\n between stories. Do NOT include source links in the body text — just write the editorial content.>",
+      "body": "<ALL stories for this section. Each story: **Bold Headline**\\n\\nSubstantial paragraph.\\n[SOURCE:N]\\n\\n**Next Headline**\\n\\nNext paragraph.\\n[SOURCE:M]\\n\\nEvery story MUST end with [SOURCE:N] before the next story.>",
       "stories": [
         {
           "headline": "<headline>",
           "source_url": "<ORIGINAL url unchanged>",
           "source_name": "<source name>",
-          "topic": "<topic_id>"
+          "topic": "<topic_id>",
+          "source_index": <original index N from raw material>
         }
       ]
     }
@@ -124,7 +145,7 @@ ${rawMaterial}`;
       topic: string;
       label: string;
       body?: string;
-      stories: { headline: string; source_url: string; source_name: string; topic: string }[];
+      stories: { headline: string; source_url: string; source_name: string; topic: string; source_index?: number }[];
     }) => ({
       topic: section.topic,
       label: section.label,
@@ -139,26 +160,27 @@ ${rawMaterial}`;
       })),
     }));
 
-    // Build editorial content with source links appended to each story
-    const editorialContent = `${parsed.opener || ""}\n\n${rewrittenSections.map(s => {
-      let body = s.body || "";
-      // Append source links after each story in the body
-      // Match each story headline in the body and append link after its paragraph
-      for (const story of s.stories) {
-        const safeHeadline = story.headline.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-        // Find the story's paragraph block and append source link
-        const headlinePattern = new RegExp(
-          `(\\*\\*[^*]*${safeHeadline.slice(0, 30)}[^*]*\\*\\*[\\s\\S]*?)(?=\\n\\n\\*\\*|$)`,
-          "i"
-        );
-        const match = body.match(headlinePattern);
-        if (match) {
-          const storyBlock = match[1].trimEnd();
-          const withLink = `${storyBlock}\n🔗 ${story.source_name}: ${story.source_url}`;
-          body = body.replace(storyBlock, withLink);
+    // Replace [SOURCE:N] placeholders with actual source links
+    for (const section of rewrittenSections) {
+      if (!section.body) continue;
+      section.body = section.body.replace(/\[SOURCE:(\d+)\]/g, (_match, indexStr) => {
+        const idx = parseInt(indexStr, 10);
+        const story = allStories[idx];
+        if (story?.source_url) {
+          return `🔗 ${story.source_name || "Source"}: ${story.source_url}`;
         }
-      }
-      return `## ${s.label}\n\n${body}`;
+        // Fallback: try to find a matching story in the section's own stories array
+        const sectionStory = section.stories.find(s => s.source_url);
+        if (sectionStory?.source_url) {
+          return `🔗 ${sectionStory.source_name || "Source"}: ${sectionStory.source_url}`;
+        }
+        return "";
+      });
+    }
+
+    // Build editorial content
+    const editorialContent = `${parsed.opener || ""}\n\n${rewrittenSections.map(s => {
+      return `## ${s.label}\n\n${s.body || ""}`;
     }).join("\n\n---\n\n")}`;
 
     return { rewrittenSections, editorialContent };

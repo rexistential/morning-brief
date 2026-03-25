@@ -9,42 +9,60 @@ const transporter = nodemailer.createTransport({
   },
 });
 
-function sectionToHtml(section: TopicSection): string {
-  const sourcesHtml = section.body && section.stories.length > 0
-    ? `<div style="margin-top:12px;font-size:12px;color:#9ca3af;">Sources: ${
-        section.stories
-          .filter(s => s.source_url)
-          .map(s => `<a href="${s.source_url}" style="color:#9ca3af;text-decoration:none;">${s.source_name || "Source"} ↗</a>`)
-          .join(" · ")
-      }</div>`
-    : "";
+const SECTION_EMOJIS: Record<string, string> = {
+  "PORTFOLIO COMPANY NEWS": "📊",
+  "COMPETITOR MOVES": "⚔️",
+  "MARKET CONTEXT": "📈",
+  "FUNDRAISING & EXITS": "💰",
+  "PRODUCT LAUNCHES": "🚀",
+  "AI & INFRASTRUCTURE": "🤖",
+  "POLICY & REGULATION": "⚖️",
+};
 
-  const stories = section.body
-    ? `<div style="font-size:15px;line-height:1.75;color:#374151;">${section.body
-        .replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>")
-        .replace(/\*(.*?)\*/g, "<em>$1</em>")
-        .replace(/\[(.*?)\]\((.*?)\)/g, '<a href="$2" style="color:#2563eb;text-decoration:none;">$1</a>')
-        .replace(/\n\n/g, "</div><div style=\"font-size:15px;line-height:1.75;color:#374151;margin-top:12px;\">")
-      }</div>${sourcesHtml}`
+function formatBody(body: string, stories: TopicSection["stories"]): string {
+  return body
+    .replace(/\*\*(.*?)\*\*/g, '<strong style="color:#111827;">$1</strong>')
+    .replace(/\*(.*?)\*/g, "<em>$1</em>")
+    .replace(/\[(.*?)\]\((.*?)\)/g, '<a href="$2" style="color:#2563eb;text-decoration:none;">$1</a>')
+    .replace(
+      /🔗\s*(.*?):\s*(https?:\/\/\S+)/g,
+      (_match, name, url) =>
+        `<a href="${url}" style="font-size:13px;color:#6b7280;text-decoration:none;">🔗 ${name} ↗</a>`
+    )
+    .split(/\n\n/)
+    .map(p => p.trim())
+    .filter(Boolean)
+    .map(p => `<div style="margin-bottom:14px;font-size:15px;line-height:1.75;color:#374151;">${p}</div>`)
+    .join("");
+}
+
+function sectionToHtml(section: TopicSection, isFirst: boolean): string {
+  const emoji = SECTION_EMOJIS[section.label] || "•";
+
+  const divider = isFirst
+    ? ""
+    : `<div style="margin:32px 0;text-align:center;">
+        <div style="border-top:1px solid #e5e7eb;margin:0 40px;"></div>
+      </div>`;
+
+  const label = `<div style="margin-bottom:20px;font-size:12px;font-weight:600;color:#9ca3af;letter-spacing:0.5px;">
+    ${emoji} ${section.label}
+  </div>`;
+
+  const content = section.body
+    ? formatBody(section.body, section.stories)
     : section.stories
         .map(
           (s) =>
-            `<div style="margin-bottom:16px;">
-              <strong style="color:#111827;">${s.headline}</strong><br/>
-              <span style="font-size:15px;color:#374151;line-height:1.75;">${s.summary}</span>
-              ${s.source_url ? `<br/><a href="${s.source_url}" style="font-size:12px;color:#9ca3af;text-decoration:none;">${s.source_name || "Source"} ↗</a>` : ""}
+            `<div style="margin-bottom:18px;">
+              <strong style="color:#111827;">${s.headline}</strong>
+              <div style="font-size:15px;line-height:1.75;color:#374151;margin-top:4px;">${s.summary}</div>
+              ${s.source_url ? `<div style="margin-top:6px;"><a href="${s.source_url}" style="font-size:13px;color:#6b7280;text-decoration:none;">🔗 ${s.source_name || "Source"} ↗</a></div>` : ""}
             </div>`
         )
         .join("");
 
-  return `
-    <div style="margin-bottom:32px;">
-      <h2 style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;color:#6b7280;border-bottom:1px solid #e5e7eb;padding-bottom:8px;margin-bottom:16px;">
-        ${section.label}
-      </h2>
-      ${stories}
-    </div>
-  `;
+  return `${divider}${label}${content}`;
 }
 
 function buildEmailHtml(briefing: Briefing): string {
@@ -58,26 +76,28 @@ function buildEmailHtml(briefing: Briefing): string {
   const opener = briefing.content?.split("\n\n##")[0]?.trim();
   const openerHtml =
     opener && !opener.startsWith("##")
-      ? `<p style="font-size:15px;color:#6b7280;line-height:1.75;margin-bottom:32px;">${opener}</p>`
+      ? `<div style="font-size:16px;color:#6b7280;line-height:1.75;margin-bottom:28px;font-style:italic;border-left:3px solid #e5e7eb;padding-left:16px;">${opener}</div>`
       : "";
 
-  const sections = briefing.topic_sections.map(sectionToHtml).join("");
+  const sections = briefing.topic_sections
+    .map((s, i) => sectionToHtml(s, i === 0))
+    .join("");
 
   return `
 <!DOCTYPE html>
 <html>
 <head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/></head>
-<body style="margin:0;padding:0;background-color:#f9fafb;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
-  <div style="max-width:600px;margin:0 auto;padding:40px 24px;">
-    <div style="margin-bottom:32px;">
-      <h1 style="font-size:28px;font-weight:700;color:#111827;margin:0;">Morning Brief</h1>
+<body style="margin:0;padding:0;background-color:#ffffff;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
+  <div style="max-width:580px;margin:0 auto;padding:40px 24px;">
+    <div style="margin-bottom:24px;">
+      <h1 style="font-size:24px;font-weight:700;color:#111827;margin:0;">Morning Brief</h1>
       <p style="font-size:13px;color:#9ca3af;margin:4px 0 0;">${date}</p>
     </div>
     ${openerHtml}
     ${sections}
-    <div style="margin-top:40px;padding-top:20px;border-top:1px solid #e5e7eb;">
+    <div style="margin-top:40px;padding-top:16px;border-top:1px solid #e5e7eb;">
       <p style="font-size:12px;color:#9ca3af;margin:0;">
-        <a href="https://morning-brief-gilt.vercel.app/dashboard/preferences" style="color:#9ca3af;">Manage preferences</a> · 
+        <a href="https://morning-brief-gilt.vercel.app/dashboard/preferences" style="color:#9ca3af;">Manage preferences</a> ·
         <a href="https://morning-brief-gilt.vercel.app/dashboard" style="color:#9ca3af;">Read on web</a>
       </p>
     </div>
